@@ -84,9 +84,5 @@
 - 编辑 `specs/` 下的三个规范文件，定制代码审查标准。当前规范极度精简，仅强调人类可读性。
 - 通过 `PROJECT-SPEC.md` 指定私有库等本地配置。
 
-## 流程图
-<img width="7088" height="11948" alt="deepseek_mermaid_20260426_1c2f56" src="https://github.com/user-attachments/assets/b658d8fb-deb4-406b-a510-1a321870bac6" />
-
-
 ## 📜 许可
 MIT License
