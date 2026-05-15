@@ -1,88 +1,107 @@
-# 🌱 Agent Garden
+# Agent Garden
 
-> 一个基于 Claude Code 的工程化多智能体开发工作流，用文件后缀状态机驱动从需求到验收的全流程自动化。
+基于 [Claude Code](https://claude.ai/code) 的**多 Agent 协作式自动化软件开发工作流系统**。
 
-## ✨ 核心理念
+通过 Task 文件后缀状态机、MCP Server 和 Skill 的组合，将“需求分析 → 计划 → 编码 → 审查 → 测试 → 验收”全流程自动化，各 Agent 各司其职，严格遵循 TDD，确保每一次代码提交都经过质量把关。
 
-- **文件即状态**：通过 `.todo.md` → `.doing.md` → `.done.md` → `.blocked.md` 的文件重命名，无需任何外部工具即可可视化管理项目进度。
-- **Agent 专业化**：五位角色各司其职（总指挥、架构师、开发者、审查员、测试员），严格遵循 TDD 与审查流程。
-- **工程化而非提示词堆砌**：流程、规范、接口定义在 Markdown 文件中，可版本控制、可审计、可共享。
+---
 
-## 🚀 快速开始
+## 核心特性
 
-### 1. 前置条件
-- 安装 [Claude Code](https://docs.anthropic.com/en/docs/claude-code/overview)
-- 拥有 Anthropic API 密钥或已登录
+- **多 Agent 协作**  
+  `Orchestrator`、`Architect`、`Developer`、`Reviewer`、`Tester` 五个角色协同工作，每个角色只做自己最擅长的事。
 
-### 2. 克隆或下载本仓库
+- **文件后缀状态机**  
+  `.todo.md` → `.doing.md` → `.done.md` → `.blocked.md`  
+  任务文件的后缀即状态，不依赖外部数据库，文件系统就是 ground truth。
 
-### 3. 启动 Claude Code
+- **内置 TDD 闭环**  
+  `Developer` 强制采用红-绿-重构循环；`Reviewer` 和 `Tester` 在每次编码完成后立即介入，失败的任务自动回到阻塞状态重试。
 
-首次启动会自动加载 `.claude/agents/` 下的子智能体定义。输入 `/new-feature` 即可开始第一个功能开发。
+- **结构化状态管理（STATE.json）**  
+  所有 Phase 和 Task 的进度、依赖、重试次数、事件历史集中存储在 `STATE.json`，可供 Orchestrator 快速决策，也方便随时查看全局进度。
 
-## 📂 目录结构
+- **可观测性与审计**  
+  MCP Server 负责记录每一次事件（`agent-events.jsonl`），同步更新 `STATE.json`，并自动修正文件后缀。每一步都可追溯。
+
+---
+
+## 架构概览
+
 ```
-.
+用户需求
+   ↓
+Orchestrator (调度)
+   ├─→ Architect (产出 plan.md + .todo.md)
+   │         ↓
+   │   STATE.json 初始化
+   │
+   ├─→ Developer (TDD 编码)
+   │         ↓
+   ├─→ Reviewer (代码审查)
+   │         ↓
+   └─→ Tester (自动化测试)
+             ↓
+         用户验收
+```
+
+所有状态变更都通过 `report-event` MCP 工具上报，MCP 负责：
+- 修改 `.todo.md` 等文件后缀
+- 写入结构化日志
+- 更新 `STATE.json`
+
+---
+
+## 快速开始
+
+### 1. 前置要求
+- Claude Code 已安装并可用
+- Python 3.10+，`mcp[cli]` 已安装
+
+### 2. 配置 MCP Server
+在 Claude Code 配置中注册 `report-event` MCP 服务器，指向 `report_event_server.py`。  
+（具体配置方式请参考 [Claude Code MCP 文档](https://docs.claude.ai/code/mcp)）
+
+### 3. 启动 Orchestrator
+```bash
+claude --agent orchestrator
+```
+
+### 4. 开始第一个需求
+直接向 Orchestrator 说出你的需求：
+```
+我要做一个用户认证系统，包括注册、登录、JWT 鉴权。
+```
+Orchestrator 会自动调度 Architect 与你讨论、产出计划，然后进入开发循环。
+
+---
+
+## 目录结构
+
+```
 ├── .claude/
-│   ├── agents/                # 五个 Agent 定义
-│   │   ├── orchestrator.md
-│   │   ├── architect.md
-│   │   ├── developer.md
-│   │   ├── reviewer.md
-│   │   └── tester.md
-│   ├── commands/              # 用户命令
-│   │   ├── new-feature.md
-│   │   ├── insert-task.md
-│   │   └── milestone.md
-│   └── skills/
-│       └── knowledge-condenser/SKILL.md   # 经验沉淀
-├── specs/                     # 代码规范
-│   ├── frontend-rules.md
-│   ├── backend-rules.md
-│   └── database-rules.md
-├── AGENTS.md                  # 项目导航索引
-├── CLAUDE.md                  # 全局执行规范
-├── PROJECT-SPEC.md            # (可选) 项目专属环境配置
-└── README.md
+│   ├── agents/agent-garden/    # Agent 角色定义 (orchestrator, architect, developer, reviewer, tester)
+│   ├── hooks/                  # MCP Server 及辅助脚本
+│   └── skills/                 # 流程 Skill 定义
+├── phases/                     # 每个 Phase 的计划、任务、质量报告
+│   └── phase-XX-名称/
+│       ├── plan.md
+│       ├── quality-report.md
+│       └── tasks/
+│           ├── TASK-001-描述.todo.md
+│           └── ...
+├── specs/                      # 代码规范文档
+├── src/                        # 项目源码
+├── tests/                      # 测试代码
+├── STATE.json                  # 全局开发进度快照
+└── .claude-logs/               # 结构化事件日志
 ```
 
-运行时产生的所有 Phase 数据均在 `phases/` 目录下，不会污染其他配置。
+---
 
-## 🧠 Agent 角色
+## 许可证
 
-| Agent | 职责 | 关键动作 |
-|:---|:---|:---|
-| **Orchestrator** | 总指挥、流程调度 | 解析用户意图、派发任务、管理 Phase 生命周期 |
-| **Architect** | 系统架构师 | 与用户讨论需求、产出原子化计划和 `.todo.md` 任务文件 |
-| **Developer** | 开发者 | 严格遵循 TDD 编写代码和测试，维护文件状态流转 |
-| **Reviewer** | 代码审查员 | 对照 `specs/` 规范审查代码，不通过则打回 `.blocked.md` |
-| **Tester** | 测试员 | 执行单元/集成/回归测试，处理用户黑盒反馈回流 |
-
-## 🔄 工作流
-
-### 标准开发流程
-输入 `/new-feature`
-```
-用户需求 → Architect 产出计划 → 用户确认 → Developer TDD 编码 → Reviewer 审查 → Tester 测试 → 用户验收
-```
-所有任务文件通过后缀自动可视化当前状态。
-
-### 紧急修复流程
-输入 `/new-feature` + “紧急！修某个 Bug”：
-```
-跳过 Architect → Orchestrator 补写简要计划 → Developer TDD  → 轻量测试 → 用户验收
+MIT
 ```
 
-### 插入任务
-使用 `/insert-task` 在已有 Phase 中插入新需求。
-
-### 里程碑
-使用 `/milestone` 生成进度快照并沉淀经验到 `KNOWLEDGE.md`。
-
-## 🛠 自定义规范
-
-- 编辑 `specs/` 下的三个规范文件，定制代码审查标准。当前规范极度精简，仅强调人类可读性。
-- 通过 `PROJECT-SPEC.md` 指定私有库等本地配置。
-
-## 📜 许可
-MIT License
+这样一份 README 能清晰地向访问者说明项目的意图、架构和用法，同时保持简洁。你可以根据需要进一步添加示例动画或链接。

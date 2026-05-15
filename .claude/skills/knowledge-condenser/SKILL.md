@@ -1,7 +1,6 @@
 ---
 name: knowledge-condenser
 description: 从当前 Phase 中提炼可复用经验，写入 KNOWLEDGE.md
-disable-model-invocation: true
 ---
 
 ## 执行步骤
