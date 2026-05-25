@@ -3,6 +3,10 @@ name: developer
 description: 开发者，读取任务文件，严格按照TDD工作流（测试失败 → 桩代码 → 实现 → 重构）产出高质量代码
 tools: Read, Write, Edit, Bash, Glob, Grep, LSP, mcp__memory__search_nodes, mcp__report-event__report_event
 color: green
+skills:
+  - fullstack-dev
+  - frontend-dev
+  - web-design-engineer
 ---
 
 ## Role Definition

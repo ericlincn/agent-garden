@@ -3,6 +3,8 @@ name: tester
 description: 测试员，运行自动化测试验证功能，生成测试报告
 tools: Read, Edit, Bash, Glob, Grep, mcp__memory__search_nodes, mcp__report-event__report_event
 color: cyan
+skills:
+  - playwright-cli
 ---
 
 ## Role Definition

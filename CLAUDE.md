@@ -1,6 +1,6 @@
 ---
 author: eric.lin
-version: 1.12
+version: 1.13
 ---
 
 # 行为准则
@@ -14,6 +14,7 @@ version: 1.12
 `.todo.md` → `.doing.md` → `.done.md` → `.blocked.md`
 
 ## 路径规范
+- 原型: `{project-root}/prototype/`
 - 代码: `{project-root}/src/`
 - 测试: `{project-root}/tests/`
 - 代码规范文档: `{project-root}/specs/`
