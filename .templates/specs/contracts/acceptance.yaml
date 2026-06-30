@@ -1,0 +1,105 @@
+# Acceptance Contract — <项目名称>
+#
+# Task 关闭前必须满足的验收条件。Tester 与 Reviewer 共同核对。
+
+# ---- 总体覆盖率 ----
+coverage:
+  unit_test_lines: "<src/**  >= 90%>"
+  branch_coverage: "<src/**  >= 85%>"
+  untestable_excluded:
+    - <入口与装配文件（main.ts / index.ts）>
+    - <渲染调用（render/*）>
+
+# ---- 必须测试的函数 / 模块 ----
+must_test:
+  - "<module/file.ts>: <function1, function2>"
+  - "<module/file.ts>: <function3>"
+
+# ---- 必测场景清单 ----
+unit_test_scenarios:
+  <module_name>:
+    - "<场景描述 1>"
+    - "<场景描述 2>"
+    - "<边界条件场景>"
+  <another_module>:
+    - "<场景描述 3>"
+    - "<场景描述 4>"
+
+# ---- E2E 场景（如适用） ----
+e2e_scenarios:
+  - name: <场景名称>
+    steps:
+      - <操作步骤 1>
+      - <操作步骤 2>
+    asserts:
+      - "<断言条件 1>"
+      - "<断言条件 2>"
+
+# ---- 前端验收路径 ----
+frontend_acceptance:
+  visual:
+    - "<视觉验收项 1>"
+  interaction:
+    - "<交互验收项 1>"
+  accessibility:
+    - "<a11y 验收项 1>"
+  performance:
+    - "<性能指标 1>"
+
+# ---- 后端验收路径 ----
+backend_acceptance:
+  api:
+    - "<API 端点验收项 1>"
+  data:
+    - "<数据完整性验收项 1>"
+  error_handling:
+    - "<错误处理验收项 1>"
+
+# ---- 手动验收项 ----
+manual:
+  visual:
+    - "<需要人眼确认的视觉项>"
+  gameplay:        # 游戏项目适用
+    - "<需要手动操作确认的玩法项>"
+  workflow:        # 通用
+    - "<需要手动走通的业务流程>"
+
+# ---- 验收关卡 ----
+gates:
+  TASK_close:
+    - 所有 must_test 全部存在且通过
+    - 所有 unit_test_scenarios 全部存在且通过
+    - 覆盖率满足 coverage 阈值
+  change_archive:
+    - 所有 TASK 关闭
+    - 所有 e2e_scenarios 通过
+    - manual 验收项被 owner 标记完成
+    - 所有契约无遗留未决项
+
+# ============================================================
+# Variant Presets
+# ============================================================
+#
+# web:
+#   coverage: unit ≥80%, e2e 覆盖主要用户旅程
+#   frontend: Playwright (page load / interaction / a11y axe-core / Lighthouse >90)
+#   backend: Vitest + supertest (API status codes / body schema / error responses)
+#   manual: 响应式断点目视 / 暗色模式 / 键盘导航
+#
+# mobile:
+#   coverage: unit ≥80%, UI test 覆盖核心流程
+#   frontend: XCUITest (navigation / form input / a11y VoiceOver)
+#   backend: N/A (mobile client only) or API contract test
+#   manual: Dynamic Type / Dark Mode / 横竖屏 / 离线行为
+#
+# game:
+#   coverage: unit test core/ ≥90%, branch ≥85%
+#   frontend: Playwright (canvas rendering 截图对比 / 键盘输入 / 完整游戏循环)
+#   backend: N/A (client-side only)
+#   manual: NES 视觉还原度 / 60fps 体感 / 玩法手感
+#
+# agent:
+#   coverage: unit test core/ ≥85%
+#   frontend: N/A (headless)
+#   backend: pytest (event flow / state derivation / MCP integration mock)
+#   manual: 端到端 agent 流程 (developer→reviewer→tester 完整链路)

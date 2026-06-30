@@ -1,0 +1,77 @@
+# Runtime Contract — <项目名称>
+#
+# 约束执行期行为：循环、计时、输入、渲染、生命周期。
+
+# ---- 主循环 ----
+loop:
+  driver: <requestAnimationFrame / asyncio event loop / CFRunLoop / ...>
+  target_fps: <60 / 不适用>
+  frame_budget_ms: <16.67 / 不适用>
+  pause_behavior: <暂停时行为描述>
+
+# 主循环每帧执行顺序（如适用）
+tick_order:
+  1: <步骤 1>
+  2: <步骤 2>
+  3: <步骤 3>
+  4: <触发渲染>
+
+# ---- 输入处理 ----
+input_map:
+  - { key: <KeyName>, state: <生效状态>, action: <动作> }
+  - { key: <KeyName>, state: [<state1>, <state2>], action: <动作> }
+
+ignored_inputs:
+  - <忽略规则 1>
+  - <忽略规则 2>
+
+# ---- 渲染规则（如适用） ----
+render:
+  canvas_size: { w: <width>, h: <height> }   # 如适用
+  cell_size: <N>
+  font: <monospace / system / ...>
+  note: <渲染补充说明>
+
+# ---- 生命周期 ----
+lifecycle:
+  boot:
+    - <初始化步骤 1>
+    - <初始化步骤 2>
+    - <启动主循环>
+  teardown:
+    - <清理步骤 1>
+    - <清理步骤 2>
+
+# ---- 错误行为 ----
+errors:
+  invalid_state_transition: <静默忽略 / 抛错 / 记录日志>
+  invalid_input: <静默忽略 / 抛错 / 记录日志>
+  <other_error_type>: <处理方式>
+
+# ============================================================
+# Variant Presets
+# ============================================================
+#
+# web (Next.js):
+#   loop: N/A (request-response model)
+#   render: Next.js App Router (RSC + Client Components)
+#   lifecycle: boot → middleware → route handler → render → stream
+#   errors: server errors → 500 page; client errors → ErrorBoundary; API errors → { error, code } JSON
+#
+# mobile (iOS):
+#   loop: CFRunLoop (主线程) + async/await (后台)
+#   render: SwiftUI @MainActor
+#   lifecycle: init → onAppear → onDisappear; 后台 → scenePhase
+#   errors: fatalError only for programmer errors; user-facing → Alert/Toast
+#
+# game (Canvas):
+#   loop: requestAnimationFrame 60fps target; tick_order: input → gravity → lock → clear → score → render
+#   render: Canvas2D cell_size=30; palette file; font=monospace
+#   lifecycle: boot (init context → bind listeners → start rAF); teardown (unbind → cancelAnimationFrame)
+#   errors: invalid state transition → noop; invalid input → ignore
+#
+# agent (CLI/TUI):
+#   loop: event-driven (subprocess spawn/await); no render loop
+#   render: stdout/stderr + structured JSON for MCP
+#   lifecycle: boot (read config → connect MCP → build state); teardown (flush logs → report final state)
+#   errors: agent crash → report_event + exit; subprocess timeout → retry 1x then fail

@@ -1,0 +1,56 @@
+# Data Contract — <项目名称>
+#
+# 约束所有运行时数据形状、类型与不变量。任何代码不得违反。
+
+types:
+
+  <TypeName>:
+    kind: <enum / object / union / array / primitive>
+    # enum:
+    values: [<VALUE_1>, <VALUE_2>, ...]
+    # object:
+    fields:
+      - { name: <fieldName>, type: <Type>, range: [<min>, <max>], mutable: <true/false> }
+      - { name: <fieldName2>, type: <Type>, range: [<min>, <max>], mutable: <true/false> }
+    # union:
+    variants:
+      - integer { range: [<min>, <max>] }
+      - literal { value: "<string>" }
+    invariants:
+      - "<不变量描述 1>"
+      - "<不变量描述 2>"
+    note: <补充说明>
+
+# 状态转换矩阵（如适用）
+state_transitions:
+  - { from: <stateA>, event: <eventName>, to: <stateB> }
+  - { from: <stateB>, event: <eventName>, to: <stateC> }
+  forbidden:
+    - { from: <stateA>, event: <eventName>, reason: "<禁止理由>" }
+
+# 数据流不变量
+data_invariants:
+  - "<模块A/> 不得持有任何可变状态；所有函数输入输出均为值类型"
+  - "运行时状态对象单一来源；不允许镜像副本"
+  - "<模块C/> 看到的状态视为只读；不得修改任何字段"
+  - "<具体的数据约束规则>"
+
+# ============================================================
+# Variant Presets
+# ============================================================
+#
+# web: types include User/Session/APIRequest/APIResponse/DBModel
+#   state_transitions: auth flow (logged_out/logging_in/logged_in/expired)
+#   data_invariants: API response shape from Zod/joi schema; DB schema from Prisma/Drizzle
+#
+# mobile: types include ViewState/NavigationRoute/LocalModel/APIResponse
+#   state_transitions: app lifecycle (inactive/active/background/suspended)
+#   data_invariants: @MainActor for UI state; Sendable for cross-actor data
+#
+# game: types include GameState/Piece/Board/Level/Score (plain objects)
+#   state_transitions: game states (menu/playing/paused/gameover)
+#   data_invariants: core/ no mutable state; runtime/ single source of truth; render/ readonly
+#
+# agent: types include AgentContext/TaskState/EventPayload/ToolCall
+#   state_transitions: task lifecycle (pending/implementing/in_review/in_test/completed/failed)
+#   data_invariants: event log as append-only; STATE.json derived from events

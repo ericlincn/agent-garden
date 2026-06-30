@@ -1,0 +1,22 @@
+# References — GitHub 范例与外部参考索引
+#
+# 格式：
+#   - id: <kebab-case 唯一标识>
+#     url: <原始 URL>
+#     why: <为什么选中它>
+#     patterns: [<关键模式 1>, <关键模式 2>]
+#     tags: [<标签 1>, <标签 2>]
+#     used_by: [<specs/design.md>, <specs/<capability>/spec.md>]
+#
+# 所有片段与模式提取存放在 references/<id>/ 下。
+# 由 produce-specs --research 自动填充，也可手动维护。
+
+references: []
+# 示例条目：
+# references:
+#   - id: nes-tetris-game-loop
+#     url: https://github.com/example/nes-tetris
+#     why: Uint8Array 棋盘 + 纯函数碰撞检测，架构分层清晰
+#     patterns: [board-uint8array, pure-collision, state-machine-enum]
+#     tags: [game, typescript, canvas]
+#     used_by: [specs/design.md]

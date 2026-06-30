@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><title>AIP, Foundry 和 Apollo — AI 企业应用方法论</title><link rel="stylesheet" href="styles.css"></head>
+<body>
+<nav class="sidebar"><h1>📖 AI 企业应用方法论</h1>
+
+<details><summary>🏛️ 架构与核心理念</summary>
+<a href="23-architecture-center-overview.html">Architecture Center 总览 ⭐</a>
+<a href="23-architecture-center-platforms.html">AIP, Foundry &amp; Apollo</a>
+<a href="23-architecture-center-ontology-system.html">Ontology 系统</a>
+<a href="23-architecture-center-multimodal-data-plane.html">Multimodal Data Plane</a>
+<a href="23-architecture-center-interoperability.html">互操作性</a>
+<a href="23-architecture-center-rubix.html">Rubix 安全基座</a>
+<a href="23-architecture-center-aip-architecture.html">AIP 架构</a>
+<a href="22-platform-overview-overview.html">平台总览</a>
+<a href="22-platform-overview-architecture.html">平台架构</a>
+<a href="22-platform-overview-interoperability.html">互操作性</a>
+<a href="22-platform-overview-aip-capabilities.html">AIP 能力</a>
+<a href="22-platform-overview-development-life-cycle.html">开发生命周期</a>
+<a href="01-aip-overview.html">AIP 概述</a>
+<a href="01-aip-aip-features.html">AIP 特性</a>
+<a href="01-aip-getting-started-with-aip.html">AIP 入门</a>
+<a href="01-aip-best-practices-prompt-engineering.html">提示工程最佳实践</a>
+<a href="01-aip-supported-llms.html">支持的 LLM</a>
+<a href="01-aip-llm-provider-compatible-apis.html">LLM 兼容 API</a>
+<a href="01-aip-ethics-governance.html">AI 伦理与治理</a>
+<a href="01-aip-aip-security.html">AIP 安全与隐私</a>
+<a href="01-aip-aip-compute-usage.html">AIP 计算用量</a>
+<a href="01-aip-aip-observability.html">AIP 可观测性</a>
+<a href="04-ontology-overview.html">Ontology 概述</a>
+<a href="04-ontology-why-ontology.html">为什么需要 Ontology</a>
+<a href="04-ontology-models.html">Ontology 中的模型</a>
+<a href="04-ontology-core-concepts.html">Ontology 核心概念</a>
+<a href="04-ontology-applications.html">Ontology 感知应用</a>
+<a href="04-ontology-ontology-best-practices.html">Ontology 最佳实践</a>
+<a href="04-ontology-ontology-structural-guidance.html">Ontology 结构指南</a>
+<a href="21-getting-started-overview.html">平台入门</a>
+<a href="21-getting-started-introductory-concepts.html">入门概念</a>
+<a href="21-getting-started-delivering-a-use-case.html">交付用例</a>
+<a href="21-getting-started-application-reference.html">应用参考</a>
+<a href="21-getting-started-next-steps-by-role.html">按角色的下一步</a>
+<a href="21-getting-started-start-with-examples.html">示例入门</a>
+<a href="21-getting-started-foundry-platform-summary-llm.html">LLM 平台摘要</a>
+</details>
+
+<details><summary>🗄️ 数据与AI集成</summary>
+<details><summary>数据集成</summary>
+<a href="02-data-integration-overview.html">概述</a>
+<a href="02-data-integration-connecting-to-data.html">连接数据</a>
+<a href="02-data-integration-data-pipeline.html">数据管道</a>
+<a href="02-data-integration-application-reference.html">应用参考</a>
+<a href="02-data-integration-datasets.html">数据集</a>
+<a href="02-data-integration-streams.html">数据流</a>
+<a href="02-data-integration-media-sets.html">媒体集</a>
+<a href="02-data-integration-branching.html">分支</a>
+<a href="02-data-integration-builds.html">构建</a>
+<a href="02-data-integration-schedules.html">调度</a>
+<a href="02-data-integration-health-checks.html">健康检查</a>
+<a href="02-data-integration-iceberg-tables.html">Iceberg 表</a>
+<a href="02-data-integration-virtual-tables.html">虚拟表</a>
+<a href="02-data-integration-change-data-capture.html">变更数据捕获</a>
+<a href="02-data-integration-views.html">视图</a>
+<a href="02-data-integration-source-type-overview.html">源类型参考</a>
+</details>
+<details><summary>Data Connection 概念</summary>
+<a href="data-connection/overview.html">概述</a>
+<a href="data-connection/core-concepts.html">核心概念</a>
+<a href="data-connection/architecture.html">架构</a>
+<a href="data-connection/connection-security.html">连接安全</a>
+<a href="data-connection/foundry-worker-vs-agent-worker.html">Worker 对比</a>
+<a href="data-connection/permissions.html">权限</a>
+<a href="data-connection/export-overview.html">导出</a>
+</details>
+<details><summary>构建与优化管线</summary>
+<a href="building-pipelines/overview.html">总览</a>
+<a href="building-pipelines/pipeline-types.html">管线类型</a>
+<a href="building-pipelines/supported-languages.html">支持的语言</a>
+<a href="building-pipelines/streaming-overview.html">流式处理</a>
+<a href="building-pipelines/stream-vs-batch.html">流 vs 批处理</a>
+<a href="building-pipelines/scheduling-overview.html">调度</a>
+<a href="building-pipelines/development-best-practices.html">开发最佳实践</a>
+<a href="building-pipelines/branching-release-process.html">分支与发布</a>
+</details>
+<a href="03-model-integration-overview.html">模型集成概述</a>
+<a href="03-model-integration-models.html">模型概念</a>
+<a href="03-model-integration-objectives.html">建模目标</a>
+<a href="03-model-integration-experiments.html">模型实验</a>
+<a href="03-model-integration-functions-on-models.html">模型函数</a>
+<a href="03-model-integration-what-to-use.html">选择建模工具</a>
+</details>
+
+<details><summary>🤖 AI 应用与代理</summary>
+<a href="12-ai-fde-overview.html">AI FDE 概述</a>
+<a href="12-ai-fde-modes-and-skills.html">AI FDE 模式与技能</a>
+<a href="12-ai-fde-security-and-governance.html">AI FDE 安全与治理</a>
+<a href="12-ai-fde-best-practices.html">AI FDE 最佳实践</a>
+<a href="13-aip-analyst-overview.html">AIP Analyst</a>
+<a href="12-ai-fde-modes-and-skills.html">AI FDE 模式与技能</a>
+<a href="12-ai-fde-security-and-governance.html">AI FDE 安全与治理</a>
+<a href="12-ai-fde-best-practices.html">AI FDE 最佳实践</a>
+<a href="13-aip-analyst-overview.html">AIP Analyst</a>
+<a href="13-aip-analyst-core-concepts.html">AIP Analyst 核心概念</a>
+<a href="13-aip-analyst-analysis-configuration.html">AIP Analyst 分析配置</a>
+<a href="14-assist-overview.html">AIP Assist</a>
+<a href="14-assist-aip-best-practices.html">AIP Assist 最佳实践</a>
+<a href="14-assist-aip-assist-custom-docs-overview.html">自定义内容源</a>
+<a href="14-assist-application-integrations.html">AIP Assist 应用集成</a>
+<a href="14-assist-aip-assist-suggested-actions.html">建议动作</a>
+<a href="15-chatbot-studio-overview.html">Chatbot Studio</a>
+<a href="15-chatbot-studio-core-concepts.html">Chatbot Studio 核心概念</a>
+<a href="15-chatbot-studio-chatbots-as-functions.html">Chatbot 作为函数</a>
+<a href="17-aip-evals-overview.html">AIP Evals</a>
+<a href="17-aip-evals-create-suite.html">创建评估套件</a>
+<a href="17-aip-evals-experiments.html">实验</a>
+<a href="17-aip-evals-analyze-run-results.html">分析运行结果</a>
+<a href="18-logic-overview.html">AIP Logic</a>
+<a href="18-logic-core-concepts.html">AIP Logic 核心概念</a>
+<a href="18-logic-blocks.html">AIP Logic 块</a>
+<a href="18-logic-execution-mode-settings.html">执行模式</a>
+<a href="18-logic-branching-logic.html">分支逻辑</a>
+<a href="19-model-catalog-overview.html">Model Catalog</a>
+<a href="20-threads-overview.html">AIP Threads</a>
+</details>
+
+<details><summary>🧩 应用构建</summary>
+<a href="06-app-building-overview.html">用例开发概述</a>
+<a href="06-app-building-operational-apps.html">运营型应用</a>
+<a href="06-app-building-analytics-operations.html">连接分析与运营</a>
+<a href="06-app-building-curating-apps.html">应用策展</a>
+<a href="workshop/overview.html">Workshop</a>
+<a href="workshop/core-concepts.html">Workshop 核心概念</a>
+<a href="workshop/application-design-best-practices.html">Workshop 设计最佳实践</a>
+<a href="slate/overview.html">Slate</a>
+<a href="carbon/overview.html">Carbon</a>
+<a href="solution-designer/overview.html">Solution Designer</a>
+<a href="solution-designer/aip-architect.html">AIP Architect</a>
+<a href="automate/overview.html">Automate</a>
+<a href="autopilot/overview.html">Autopilot</a>
+<a href="workflow-lineage/overview.html">Workflow Lineage</a>
+</details>
+
+<details><summary>🔒 安全与治理</summary>
+<a href="10-security-overview.html">安全概述</a>
+<a href="10-security-shared-security-responsibility-model.html">共享责任模型</a>
+<a href="10-security-security-glossary.html">安全词汇表</a>
+<a href="10-security-data-protection-and-governance.html">数据保护与治理</a>
+<a href="10-security-securing-a-data-foundation.html">保护数据基础</a>
+<a href="10-security-securing-a-business-application.html">保护业务应用</a>
+<a href="10-security-protecting-sensitive-data.html">保护敏感数据</a>
+<a href="10-security-cross-organization-collaboration.html">跨组织协作</a>
+<a href="10-security-checking-permissions.html">权限检查</a>
+<a href="10-security-orgs-and-spaces.html">组织与空间</a>
+<a href="10-security-projects-and-roles.html">项目与角色</a>
+<a href="10-security-markings.html">标记</a>
+<a href="10-security-classification-based-access-controls.html">基于分类的访问控制</a>
+<a href="10-security-audit-logs-overview.html">审计日志</a>
+<a href="approvals/overview.html">审批</a>
+<a href="checkpoints/overview.html">Checkpoints</a>
+<a href="cipher/overview.html">Cipher</a>
+<a href="compass/overview.html">Compass</a>
+<a href="sensitive-data-scanner/overview.html">敏感数据扫描</a>
+<a href="data-lifetime/overview.html">数据生命周期</a>
+</details>
+
+<details><summary>📊 可观测性与分析</summary>
+<a href="07-observability-overview.html">可观测性概述</a>
+<a href="07-observability-data-health.html">数据健康</a>
+<a href="07-aip-observability-overview.html">AIP 可观测性</a>
+<a href="07-aip-observability-performance-monitoring-and-optimization.html">性能监控与优化</a>
+<a href="08-analytics-overview.html">分析概述</a>
+<a href="08-analytics-types-of-analysis.html">分析类型</a>
+<a href="contour/overview.html">Contour</a>
+<a href="insight/overview.html">Insight</a>
+<a href="quiver/overview.html">Quiver</a>
+<a href="quiver/core-concepts.html">Quiver 核心概念</a>
+</details>
+
+<details><summary>📦 交付与运维</summary>
+<a href="09-devops-overview.html">产品交付概述</a>
+<a href="09-devops-core-concepts.html">DevOps 核心概念</a>
+<a href="09-marketplace-overview.html">Marketplace</a>
+<a href="09-foundry-devops-overview.html">Foundry DevOps</a>
+<a href="09-devops-release-management-overview.html">发布管理</a>
+<a href="11-administration-overview.html">管理概述</a>
+<a href="resource-management/overview.html">资源管理</a>
+<a href="consumer-mode/overview.html">消费者模式</a>
+</details>
+
+<details><summary>⭐ 企业采纳方法论</summary>
+<a href="24-foundry-adoption-program-overview.html">Foundry 项目总览</a>
+<a href="24-foundry-adoption-program-team-development-phases.html">团队发展阶段</a>
+<a href="24-foundry-adoption-phase-1.html">阶段 1：聚焦用例</a>
+<a href="24-foundry-adoption-phase-2.html">阶段 2：基础设施扩展</a>
+<a href="24-foundry-adoption-phase-3.html">阶段 3：自主增长</a>
+<a href="24-foundry-adoption-phase-4.html">阶段 4：超增长</a>
+<a href="24-foundry-adoption-governance-processes.html">治理流程</a>
+<a href="25-use-case-life-cycle-overview.html">用例生命周期总览</a>
+<a href="25-use-case-life-cycle-distilling-functional-requirements.html">提炼功能需求</a>
+<a href="25-use-case-life-cycle-solution-design.html">方案设计</a>
+<a href="25-use-case-life-cycle-sequencing-development.html">排序开发</a>
+<a href="25-use-case-life-cycle-use-case-roles.html">用例角色</a>
+<a href="26-use-case-patterns-alerting-workflow.html">告警工作流模式</a>
+<a href="26-use-case-patterns-investigation-and-cohorting.html">调查与分组模式</a>
+<a href="26-use-case-patterns-multi-organization-ecosystems.html">多组织生态模式</a>
+<a href="26-use-case-patterns-operational-process-coordination.html">运营流程协调模式</a>
+<a href="26-use-case-patterns-resource-allocation-optimization.html">资源分配优化模式</a>
+<a href="27-use-case-examples.html">行业用例案例</a>
+<a href="30-guides-and-workflows-overview.html">指南与工作流</a>
+<a href="flow-capture/overview.html">Flow Capture</a>
+<a href="walkthroughs/overview.html">Walkthroughs</a>
+</details>
+
+<details><summary>🔧 开发者工具链</summary>
+<a href="05-dev-toolchain-overview.html">开发者工具链概述</a>
+<a href="05-ontology-sdk-overview.html">Ontology SDK</a>
+<a href="05-ontology-mcp-overview.html">Ontology MCP</a>
+<a href="05-palantir-mcp-overview.html">Palantir MCP</a>
+<a href="05-developer-console-overview.html">Developer Console</a>
+<a href="05-compute-modules-overview.html">Compute Modules</a>
+<a href="05-code-workspaces-overview.html">Code Workspaces</a>
+<a href="05-vs-code-overview.html">VS Code Workspaces</a>
+<a href="05-global-branching-overview.html">全球分支</a>
+<a href="05-cross-app-interactivity-overview.html">跨应用交互</a>
+</details>
+
+</nav>
+
+
+
+
+
+
+
+
+<main class="content">
+<h1>AIP, Foundry 和 Apollo</h1>
+<p class="section-meta">三大集成平台 — 企业级操作系统</p>
+
+<p>标准 Palantir 架构由三个集成平台组成：<strong>AIP</strong>、<strong>Foundry</strong> 和 <strong>Apollo</strong>。</p>
+
+<ul>
+<li><strong>Apollo</strong>：持续交付平台，管理托管 Foundry 和 AIP 服务的基础设施。Apollo 每天协调数百个服务和资产的数千次零停機升級。</li>
+<li><strong>Foundry</strong>：基础数据运营平台，提供数据管理、逻辑编写、Ontology 开发、分析和工作流开发的核心能力。</li>
+<li><strong>AIP</strong>：生成式 AI 平台，通过 "k-LLM" 范式提供 LLM 的安全连接、构建代理和自动化的开发工具链、一系列 AI 赋能的应用以及全面的评估框架。</li>
+</ul>
+
+<h2>企业级操作系统</h2>
+<img src="images/architecture-center/platforms-enterprise-os.png" alt="企业级操作系统示意图" style="max-width:100%;border-radius:6px;margin:12px 0;">
+<p>AIP + Foundry + Apollo 的组合架构被设计为<strong>企业级操作系统</strong>。该架构可映射为九个能力集：</p>
+<ul>
+<li><strong>Ontology 语言、引擎和工具链</strong> — 共同构成 Ontology 系统</li>
+<li><strong>数据服务、逻辑服务和工作流服务</strong> — 为 Ontology 系统提供动力</li>
+<li><strong>分析与应用、自动化</strong> 和 <strong>产品交付</strong> 工具链 — 用户可用以达成目标</li>
+</ul>
+<p>每个能力集都横跨六个网格级组件：存储、计算、网络、安全、治理和工作空间。所有组件由 Apollo 驱动。</p>
+
+<h2>统一安全架构</h2>
+<p>统一安全架构横跨所有三个平台，分三个层面：</p>
+<ul>
+<li><strong>基础设施安全</strong>：每个组件基于零信任运营，通过 Apollo 强制加密、防火墙和运行时配置</li>
+<li><strong>平台安全</strong>：强制访问范围、基于角色/标记/目的的精细访问控制，与自动化血缘和审计连接</li>
+<li><strong>企业安全</strong>：加密、审计日志、授权和认证配置，深度集成现有身份提供商和安全工具</li>
+</ul>
+
+<h2>可扩展性与互操作性</h2>
+<p>标准架构设计为可扩展和深度集成：</p>
+<ul>
+<li><strong>Compute Modules</strong>：开发者可将自有容器引入 Apollo 管理的网格</li>
+<li><strong>行业扩展</strong>：空客的 Skywise、Fujitsu 的代理应用、Andretti Racing 的 RaceOS 等都是在标准架构上构建的</li>
+<li><strong>跨领域应用</strong>：医疗、制造、国防等领域都在同一核心架构上构建专业化应用</li>
+</ul>
+
+<h2>追求 Alpha</h2>
+<blockquote>标准架构的目标是交付非标准的结果——通过可维护的定制化实现极致差异化。</blockquote>
+<p>Palantir 将成功部署定义为企业在"追求 Alpha"（投资术语）——即围绕自身差异化构建、将独特性注入 Ontology、实时适应复杂运营条件以追求战略目标，从而产生超额回报。相比之下，追求"Beta"只是摘取低垂的果实（如通用 SaaS 部署）。</p>
+
+<h2>FDE 的精髓</h2>
+<p>AIP、Foundry 和 Apollo 的动态性共同反映了<strong>Forward Deployed Engineering</strong>（FDE）产品开发范式——"反向传播的人类等价物"。Palantir 工程师深入嵌入全球关键环境，从战区到工厂车间，与客户并肩工作，不知疲倦地构建和发布新功能。</p>
+
+<hr>
+<p style="color:#888;font-size:12px">来源: <a href="https://www.palantir.com/docs/foundry/architecture-center/platforms/">https://www.palantir.com/docs/foundry/architecture-center/platforms/</a></p>
+<div class="page-nav">
+<a href="23-architecture-center-overview.html">← Architecture Center 总览</a>
+<a href="23-architecture-center-ontology-system.html">下一页：Ontology 系统 →</a>
+</div>
+</main>
+</body>
+</html>

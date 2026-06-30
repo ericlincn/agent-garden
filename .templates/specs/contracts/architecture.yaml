@@ -1,0 +1,115 @@
+# Architecture Contract — <项目名称>
+#
+# 约束技术栈、依赖、分层、命名。任何架构决策不得违反以下条款。
+# 由 Reviewer 在每个 Task 关闭前显式核对。
+
+stack:
+  language: <TypeScript / Python / Swift / ...>
+  version: "<版本约束>"
+  strict: <true / false>
+  build: <Vite / Next.js / Xcode / ...>
+  version_build: "<版本约束>"
+  unit_test: <Vitest / pytest / XCTest / ...>
+  version_unit_test: "<版本约束>"
+  e2e_test: <Playwright / Cypress / ...>
+  version_e2e_test: "<版本约束>"
+  render: <Canvas2D / React / SwiftUI / ...>
+  module_system: <ESM / CommonJS / ...>
+
+# 禁止项 — 任何 Task 不得引入
+forbidden:
+  frameworks:
+    - <禁止的框架 1>
+    - <禁止的框架 2>
+  libraries:
+    - <禁止的库 1>
+  patterns:
+    - <禁止的模式 1>  # 例：禁止 any 类型
+  storage:
+    - <禁止的存储方式>  # 如不需要持久化则列出全部
+
+# 必备项 — 架构层必须满足
+required:
+  layering:
+    - <层名/> 必须是纯函数层，禁止引用 DOM / 网络 / 文件系统
+    - <层名/> 拥有可变状态；外部不得直接修改内部字段
+    - <层名/> 仅通过 readonly 接口读取状态
+  module_boundary:
+    - <模块A/> 内的文件不得 import <模块B/>
+  pure_functions:
+    - <函数类别 1> / <函数类别 2> 全部为纯函数
+    - 纯函数禁抛异常；失败返回 null 或 false
+  types:
+    - 所有公开 API 必须有显式类型声明
+    - 禁止 any 出现在生产代码中
+  errors:
+    - 不允许静默吞错；非法状态转换必须显式 noop 或抛错
+  deps:
+    - dependencies 数量上限：<N> 个（不含 devDependencies）
+    - 每个新依赖需在本契约登记后才可引入
+
+# 命名约束
+naming:
+  files: <kebab-case / PascalCase / snake_case>
+  functions: <camelCase / snake_case>
+  types: <PascalCase>
+  constants: <UPPER_SNAKE_CASE>
+  test_files: <*.test.ts / *_test.py> 镜像于 tests/
+
+# 文件布局
+layout:
+  src:
+    - "<目录/>  <职责>"
+    - "<目录/>  <职责>"
+  tests:
+    - "<tests/unit/  单元测试>"
+    - "<tests/e2e/  E2E 测试>"
+
+# 评审清单（Reviewer 必查项）
+review_checklist:
+  - 是否违反 forbidden 任何条款
+  - 是否满足 required 任何条款
+  - 是否符合命名与布局约束
+  - 新依赖是否在契约中登记
+  - 纯函数是否保持纯（无副作用 / 无外部状态读取）
+
+# ============================================================
+# Variant Presets（produce-specs 根据 --project-type 选择）
+# ============================================================
+#
+# web (Next.js / React 全栈):
+#   language: TypeScript, strict: true
+#   build: Next.js, unit_test: Vitest, e2e_test: Playwright
+#   render: React, module_system: ESM
+#   forbidden.frameworks: [Vue, Svelte, Angular]
+#   forbidden.storage: [localStorage (use cookies or server session)]
+#   layering: [components/ (UI), services/ (business logic), app/api/ (API routes), lib/ (utils)]
+#   deps limit: 5 (excluding next, react, typescript)
+#
+# mobile (Swift/SwiftUI iOS):
+#   language: Swift, strict: true (Swift 6 concurrency)
+#   build: Xcode, unit_test: XCTest, e2e_test: XCUITest
+#   render: SwiftUI, module_system: Swift Package Manager
+#   forbidden.frameworks: [UIKit (use SwiftUI), React Native, Flutter]
+#   forbidden.patterns: [force-unwrap, try!, implicitly unwrapped optional]
+#   layering: [Views/ (UI), ViewModels/ (state), Services/ (business logic), Models/ (data)]
+#   deps limit: 3 (excluding Apple frameworks)
+#
+# game (Canvas/WebGL 小游戏):
+#   language: TypeScript, strict: true
+#   build: Vite, unit_test: Vitest, e2e_test: Playwright
+#   render: Canvas2D, module_system: ESM
+#   forbidden.frameworks: [React, Vue, Phaser, PixiJS, 任何 UI/游戏框架]
+#   forbidden.libraries: [Redux, MobX, Zustand, 任何状态管理库]
+#   forbidden.storage: [localStorage, sessionStorage, IndexedDB]
+#   layering: [core/ (纯函数), runtime/ (状态机+ticker+输入), render/ (Canvas绘制)]
+#   deps limit: 3 (excluding vite, typescript, vitest, playwright)
+#
+# agent (AI Agent 流程自动化):
+#   language: Python, strict: true (mypy strict)
+#   build: Poetry/setuptools, unit_test: pytest, e2e_test: pytest + subprocess
+#   render: CLI/TUI, module_system: Python packages
+#   forbidden.patterns: [裸 except:, print() 替代 logging, 硬编码路径]
+#   forbidden.libraries: [langchain (unless justified)]
+#   layering: [core/ (纯函数), agents/ (agent定义), skills/ (skill定义), mcp/ (MCP server)]
+#   deps limit: 5 (excluding pytest, mypy)

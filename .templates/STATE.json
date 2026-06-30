@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "last_updated": "<ISO-8601 时间戳，如 2026-06-03T15:30:00Z>",
+  "current_phase": "phase-01",
+  "total_phases": 1,
+  "completed_phases": 0,
+  "active_phases": 1,
+  "phases": {
+    "phase-01": {
+      "phase_id": "phase-01",
+      "name": "<Phase 名称>",
+      "status": "running | completed",
+      "task_folder": "phases/phase-01-<名称>/tasks/",
+      "created_at": "<ISO-8601>",
+      "updated_at": "<ISO-8601>",
+      "tasks": {
+        "TASK-001": {
+          "task_id": "TASK-001",
+          "task_path": "phases/phase-01-<名称>/tasks/TASK-001-<描述>.md",
+          "status": {
+            "implementation": "pending | running | completed | failed",
+            "review": "pending | running | completed | failed",
+            "test": "pending | running | completed | failed"
+          },
+          "review_rejections": 0,
+          "test_failures": 0,
+          "last_event_type": null,
+          "last_agent": null,
+          "created_at": "<ISO-8601>",
+          "updated_at": null
+        }
+      }
+    }
+  }
+}
