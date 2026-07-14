@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# .bin/play-sound.py
+# .bin/play_sound.py
 """
 用法: python play_sound.py alert|idle
 """

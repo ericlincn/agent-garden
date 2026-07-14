@@ -20,9 +20,15 @@ for _stream in (sys.stdout, sys.stderr):
     except (AttributeError, OSError):
         pass
 
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+
 # phase-NN-<name>：suffix 必选，与 AGENT.md 规范一致
 PHASE_DIR_RE = re.compile(r"phase-(\d{2})-([^/\\]+)")
 TASK_FILE_RE = re.compile(r"TASK-(\d{3})")
+
+# YAML 前注记解析
+FRONTMATTER_RE = re.compile(r"^\ufeff?---\s*\n(.*?)\n---\s*\n", re.DOTALL)
+KV_RE = re.compile(r"^([A-Za-z_][A-Za-z0-9_-]*)\s*:\s*(.*)$")
 
 
 def list_phases(phases_dir: Path) -> list[tuple[int, str, Path]]:
@@ -95,3 +101,40 @@ def extract_phase(raw_path: str) -> tuple[int | None, str | None]:
 def extract_task_id(raw_path: str) -> str | None:
     m = TASK_FILE_RE.search(raw_path)
     return f"TASK-{m.group(1)}" if m else None
+
+
+def parse_frontmatter(text: str) -> dict[str, str]:
+    """极简 frontmatter 解析：--- 包裹的 YAML 片段，识别顶层 key 与单行列表。
+
+    返回值示例：
+    {"task-id": "TASK-001", "dependencies": "[\"phase-01/TASK-001\"]"}
+    列表值（- item 格式）以 | 拼接："TASK-001|TASK-002"
+    """
+    m = FRONTMATTER_RE.match(text)
+    if not m:
+        return {}
+    body = m.group(1)
+    result: dict[str, str] = {}
+    current_list_key: str | None = None
+    for raw_line in body.splitlines():
+        line = raw_line.rstrip()
+        if not line.strip():
+            continue
+        if line.lstrip().startswith("- "):
+            if current_list_key is None:
+                continue
+            result[current_list_key] = (
+                result.get(current_list_key, "") + "|" + line.lstrip()[2:].strip()
+            ).strip("|")
+            continue
+        kv = KV_RE.match(line)
+        if not kv:
+            continue
+        key, value = kv.group(1), kv.group(2).strip()
+        if value == "" or value.startswith("[") or value.startswith("{"):
+            current_list_key = key
+            result[key] = value
+        else:
+            current_list_key = None
+            result[key] = value
+    return result

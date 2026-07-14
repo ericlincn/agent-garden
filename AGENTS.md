@@ -5,24 +5,27 @@ version: 2.2
 
 # 行为准则
 - **先想后写**：不确定就提问，有多种解读就呈现出来，有更简单方案就说出来
-- **简洁优先**：不写推测性代码、不为单次使用建抽象、不添加未要求的灵活性。200 行能变 80 行就重写
+- **简洁优先**：不写推测性代码、不为单次使用建抽象、不添加未要求的灵活性。200 行能变 50 行就重写
 - **精准修改**：只改必须改的，不改相邻代码风格，不改没坏的东西。死代码提出来但别删。每行改动都要能追溯到需求
 - **目标驱动**：任务转为可验证目标（"修复 bug" → "写复现测试" → "通过"），多步骤给出计划并逐步验证
+- **信息求证**：当必须做技术决策且内部资料不充分时，用 WebSearch 补充外部信息
 - **对话语言**：中文
 
 
 # 路径规范
-- 事实来源（只读）： `.source/`
+- 事实来源： `.source/`
+- 规范文档：`.rules/`
 - 规格文档: `specs/`
 - 参考： `references/`
-- 规范文档（只读）：`rules/`
 - 代码: `src/`
 - 测试: `tests/`
 - 开发 Phase: `phases/phase-XX-名称/`
 - Task 文件夹: `phases/phase-XX-名称/tasks/`
 - Task 文件: `phases/phase-XX-名称/tasks/TASK-XXX-简短描述.md`
-- 全局快照（只读）：`STATE.json`
-- Task 依赖关系图（只读）：`task_graph.json`
+- 全局快照：`STATE.json`
+- Task 依赖关系图：`task_graph.json`
+- 体验发现：`discoveries/`
+
 
 ## 模块代码路径规范
 - 代码文件的路径必须以 `src/` 为前缀（如 `src/services/xxx.py`、`src/app/blueprints/xxx.py`），不允许出现裸模块路径（如 `services/xxx.py`）
@@ -37,14 +40,24 @@ version: 2.2
   - 合法示例：`tasks/TASK-001-环境搭建.md`、`tasks/TASK-002-用户登录接口.md`
   - 非法示例：`tasks/TASK-1-...`（未零填充）、`tasks/TASK-0001-...`（四位）、`tasks/task-001-...`（小写）、`tasks/001-...`（缺 `TASK-` 前缀）
 - **序号连续性**：Phase 序号全局递增；Task 序号在所属 Phase 内从 001 起连续。上一 Phase 完成后，下一 Phase 序号 = 上一 Phase 序号 + 1。
-- **描述部分**：用简短中文短语（建议 ≤ 12 字），单词之间用连字符 `-` 分隔，不允许空格、不允许中文标点。
+- **名称/描述部分**：用简短中文短语（建议 ≤ 12 字），单词之间用连字符 `-` 分隔，不允许空格、不允许中文标点。
+- **Task 文件 YAML**：无论同 phase 依赖 / 跨 phase 依赖，dependencies 字段格式都要写作 phase-NN/TASK-NNN，例如 ["phase-01/TASK-001", "phase-01/TASK-002"]。无依赖留空数组
 
 
 ## 模板路径
-- Task 文件模板（只读）：`.templates/TASK.md`
-- 全局快照模板（只读）：`.templates/STATE.json`
-- 规格文档模板（只读）：`.templates/specs/`
-- 参考索引模板（只读）：`.templates/references.yaml`
+- Task 文件模板：`.templates/TASK.md`
+- 全局快照模板：`.templates/STATE.json`
+- 规格文档模板：`.templates/specs/`
+- 参考索引模板：`.templates/references.yaml`
+- Discovery 文件模板：`.templates/discovery.md`
+
+
+## 受保护的路径
+`.bin/` `.opencode/` `.rules/` `.source/` `.templates/`
+- 通过上下文判断当前是否处于 "agents 自动化工作流优化" 的任务，若是标记 `AAWO = true`，若否标记 `AAWO = false`，默认 `AAWO = false`
+- 若 `AAWO = false`，受保护的路径内**禁止进行任何 `write` `edit` 操作**
+- 若 `AAWO = false`，开发过程中，代码需要引用/链接 `.source/` 中的文件，需要将文件副本拷贝到 `.source/` 之外，**禁止直接引用/链接**
+- 若 `AAWO = false`，开发过程中，**禁止在 `.bin/` 建立脚本**
 
 
 # Subagent 通用行为准则
@@ -57,8 +70,10 @@ version: 2.2
   - **禁止**使用绝对路径（以盘符 `E:\` / 根目录 `/` 开头）
   - 调用前若手里是绝对路径，必须用 `os.path.relpath(<abs>, <project_root>)` 化为相对路径
 
+
 ## 落盘前置门（Report-as-Gate）
 - **先上报，后落盘**：所有终态事件（TDD_COMPLETED/FAILED、REVIEW_COMPLETED/FAILED、TEST_COMPLETED/FAILED）必须**先成功上报**，然后才允许在 Task 文件中追加 `## 实现摘要` / `## 审查报告` / `## 测试报告` 章节。
+
 
 ## 事件上报自检（通用重试规则）
 每次调用 `mcp__report-event__report_event` 后，**必须检查返回值 `ok` 字段**：
@@ -74,4 +89,5 @@ version: 2.2
 - **Docker**: `docker` 命令直接可用，无需查找路径或验证
 - **Git**: `git` 命令直接可用，无需查找路径或验证
 - **Playwright CLI**: 仅在需要**真实浏览器**端到端测试时使用 `Playwright CLI`，`playwright-cli` 命令直接可用，无需查找路径或验证；如需帮助查看 `skill:playwright-cli` 或运行命令 `playwright-cli --help`。`playwright-cli` 与 `npx playwright-cli` 等价，优先使用 `playwright-cli`
-- **Searxng MCP Server**：优先使用 `Searxng` 进行 `web_search`
+- **Searxng MCP Server**：优先使用 `Searxng` 进行 `websearch`，`webfetch`
+- **具体开发细节**：@PROJECT-SPEC.md

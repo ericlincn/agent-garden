@@ -1,11 +1,13 @@
 """
-report-event-server.py — Agent Garden 事件报告 MCP Server
+report_event_server.py — Agent Garden 事件报告 MCP Server
 
 职责：
-   1) 写全量事件日志 .agent-logs/agent-events.jsonl
-   2) 维护最新事件快照 .agent-logs/latest-project-events.jsonl
-   3) PHASE_PLAN_COMPLETED 自动拆分复数数组字段为多条独立事件
-   4) 不在 VALID_EVENTS 的事件不写任何日志
+    1) 写全量事件日志 .agent-logs/agent-events.jsonl（所有事件均记录）
+    2) 维护最新事件快照 .agent-logs/project-events.jsonl（仅 VALID_EVENTS）
+    3) PHASE_PLAN_COMPLETED 自动拆分复数数组字段为多条独立事件
+    4) 未知事件（如 HEARTBEAT、SERVER_STARTED）仅写入全量日志，不写入 latest
+      （避免污染 STATE.json 的 last_updated 与 stale 判定）
+    5) 接收所有 event_type，不做拒绝
 """
 from __future__ import annotations
 
@@ -16,31 +18,23 @@ import threading
 from datetime import datetime
 from typing import Any
 
+from _common import PROJECT_ROOT, normalize_path
 from mcp.server.fastmcp import FastMCP
-
-# Windows 中文终端编码兜底
-for _stream in (sys.stdout, sys.stderr):
-    try:
-        _stream.reconfigure(encoding="utf-8")
-    except (AttributeError, OSError):
-        pass
 
 mcp = FastMCP(name="Agent Event Reporter")
 
 VALID_EVENTS = [
-    "SPECS_CREATED", "SPECS_UPDATED",
     "PHASE_PLAN_COMPLETED",
-    "TDD_INPROGRESS", "TDD_COMPLETED", "TDD_FAILED",
-    "REVIEW_INPROGRESS", "REVIEW_COMPLETED", "REVIEW_FAILED",
-    "TEST_INPROGRESS", "TEST_COMPLETED", "TEST_FAILED",
-    "HEARTBEAT", "SERVER_STARTED",
+    "TDD_COMPLETED", "TDD_FAILED",
+    "REVIEW_COMPLETED", "REVIEW_FAILED",
+    "TEST_COMPLETED", "TEST_FAILED",
+    "EXPLORER_COMPLETED", "EXPLORER_SKIPPED", "EXPLORER_FOUND"
 ]
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
-PROJECT_ROOT = os.path.dirname(SCRIPT_DIR)
-LOG_DIR = os.path.join(PROJECT_ROOT, ".agent-logs")
+LOG_DIR = os.path.join(str(PROJECT_ROOT), ".agent-logs")
 FULL_LOG_FILE = os.path.join(LOG_DIR, "agent-events.jsonl")
-LATEST_PROJECT_LOG_FILE = os.path.join(LOG_DIR, "latest-project-events.jsonl")
+LATEST_PROJECT_LOG_FILE = os.path.join(LOG_DIR, "project-events.jsonl")
 
 os.makedirs(LOG_DIR, exist_ok=True)
 
@@ -54,28 +48,11 @@ def warn(msg: str) -> None:
     print(f"[report-event] WARN: {msg}", file=sys.stderr)
 
 
-def normalize_path(raw: str) -> str:
-    """绝对→相对项目根；反斜杠→正斜杠。"""
-    if not raw:
-        return raw
-    p = raw.replace("\\", "/")
-    root = str(PROJECT_ROOT).replace("\\", "/").rstrip("/")
-    if p.startswith(root + "/"):
-        p = p[len(root) + 1:]
-    if not os.path.isabs(p):
-        return p
-    try:
-        p = os.path.relpath(p, root).replace("\\", "/")
-    except ValueError:
-        warn(f"路径 {raw} 不在项目根 {root} 下，保留原样")
-    return p
-
-
 def normalize_payload_paths(payload: dict[str, Any], fields: tuple[str, ...]) -> None:
     """就地规范化 payload 中指定字段的路径。"""
     for f in fields:
         if f in payload and isinstance(payload[f], str):
-            payload[f] = normalize_path(payload[f])
+            payload[f] = normalize_path(payload[f], PROJECT_ROOT)
 
 
 def now_iso_ms() -> str:
@@ -149,13 +126,13 @@ def report_event(event_type: str, agent_name: str, payload: dict = None):
     if payload is None:
         payload = {}
 
-    if event_type not in VALID_EVENTS:
-        msg = f"[report-event] 非法 event_type '{event_type}'，合法值: {VALID_EVENTS}。事件未写入日志。"
-        print(msg, file=sys.stderr)
-        return {"ok": False, "error": msg}
-
-    # 规范化所有路径字段
+    # 规范化所有路径字段（单数字段就地替换）
     normalize_payload_paths(payload, ("task_path", "plan_path", "task_folder", "specs_folder", "references_folder"))
+    # 复数字段：拆分前逐元素规范化，避免 split_plural_field 把未规范路径带进 latest 日志
+    for plural in ("task_folders", "task_paths"):
+        arr = payload.get(plural)
+        if isinstance(arr, list):
+            payload[plural] = [normalize_path(x, PROJECT_ROOT) if isinstance(x, str) else x for x in arr]
 
     log_entry = {
         "timestamp": now_iso_ms(),
@@ -175,10 +152,12 @@ def report_event(event_type: str, agent_name: str, payload: dict = None):
 
     # 持锁串行写入，避免并发 append 导致行交错
     with _LOG_LOCK:
-        # 全量日志：原样写入（含复数 plan_paths 一条记录）
+        # 全量日志：所有事件均写入
         append_jsonl(FULL_LOG_FILE, log_entry)
-        for split_entry in entries:
-            append_jsonl(LATEST_PROJECT_LOG_FILE, split_entry)
+        # 仅 VALID_EVENTS 写入 latest 项目事件流，未知事件（如 HEARTBEAT、SERVER_STARTED）不写入
+        if event_type in VALID_EVENTS:
+            for split_entry in entries:
+                append_jsonl(LATEST_PROJECT_LOG_FILE, split_entry)
 
     return {"ok": True}
 
@@ -196,7 +175,7 @@ if __name__ == "__main__":
         "payload": {"pid": pid},
     }
     with _LOG_LOCK:
+        # SERVER_STARTED 仅写全量日志，不进入 latest 项目事件流
         append_jsonl(FULL_LOG_FILE, startup_entry)
-        append_jsonl(LATEST_PROJECT_LOG_FILE, startup_entry)
     print(f"[report-event] SERVER_STARTED pid={pid}", file=sys.stderr)
     mcp.run()

@@ -30,6 +30,15 @@ forbidden:
 
 # 必备项 — 架构层必须满足
 required:
+  test_seed:
+    # web 项目有鉴权时必填。声明 explorer / tester 用的测试账户与注入方式。
+    # developer 据此产出 seed 脚本与 auth_state.json，explorer 仅加载。
+    accounts:
+      - username: <测试账户>
+        password: <测试密码>
+        role: <角色>
+    mode: <boot_seed | init_container>  # boot_seed=entrypoint 首启动注入；init_container=独立 seed 服务
+    auth_state: tests/explorer/auth_state.json  # playwright storageState 路径，developer 产出
   layering:
     - <层名/> 必须是纯函数层，禁止引用 DOM / 网络 / 文件系统
     - <层名/> 拥有可变状态；外部不得直接修改内部字段
@@ -43,7 +52,11 @@ required:
     - 所有公开 API 必须有显式类型声明
     - 禁止 any 出现在生产代码中
   errors:
-    - 不允许静默吞错；非法状态转换必须显式 noop 或抛错
+    - 禁止裸 except / except Exception 且不 re-raise；捕获必须 log 并显式处理（re-raise / return error type / fallback with log）
+    - 禁止 return None / return False / return {} 作为错误信号；错误必须通过异常或显式 error type 传递
+    - 所有外部 IO（HTTP / DB / 文件系统 / 子进程）必须有 try/except 且 log 原始异常（含 traceback）
+    - 所有 catch 块必须 log，禁止空 catch 块（except: pass）
+    - 日志必须包含上下文：操作名 + 关键参数（脱敏后）+ 错误详情
   deps:
     - dependencies 数量上限：<N> 个（不含 devDependencies）
     - 每个新依赖需在本契约登记后才可引入
@@ -83,8 +96,13 @@ review_checklist:
 #   render: React, module_system: ESM
 #   forbidden.frameworks: [Vue, Svelte, Angular]
 #   forbidden.storage: [localStorage (use cookies or server session)]
+#   forbidden.patterns: [print() 替代 logging]
 #   layering: [components/ (UI), services/ (business logic), app/api/ (API routes), lib/ (utils)]
 #   deps limit: 5 (excluding next, react, typescript)
+#   logging: required (统一 logger，禁 print 替代)
+#   health_endpoint: [/health GET 200, 不要求认证, 用于 Docker healthcheck 与 Explorer]
+#   containerized: [Dockerfile + docker-compose.yml, healthcheck 指向 /health, volume 挂载源码]
+#   test_seed: 有鉴权时必填，boot_seed 模式 + 至少 1 个测试账户 + auth_state.json
 #
 # mobile (Swift/SwiftUI iOS):
 #   language: Swift, strict: true (Swift 6 concurrency)

@@ -80,6 +80,10 @@ gates:
 # Variant Presets
 # ============================================================
 #
+# 通用约束（所有 project-type）：
+#   must_test / unit_test_scenarios / coverage / gates 不可为空或 N/A；
+#   仅 e2e_scenarios / frontend_acceptance / manual 允许在 non-web 时写 [] 并加注释。
+#
 # web:
 #   coverage: unit ≥80%, e2e 覆盖主要用户旅程
 #   frontend: Playwright (page load / interaction / a11y axe-core / Lighthouse >90)

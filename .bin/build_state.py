@@ -1,30 +1,27 @@
 """
-build_state.py — 从 .agent-logs/latest-project-events.jsonl 重建项目根目录 STATE.json
+build_state.py — 从 .agent-logs/project-events.jsonl 重建项目根目录 STATE.json
 
 数据源：
-  1) 事件日志：.agent-logs/latest-project-events.jsonl（已由 report-event-server 过滤
+   1) 事件日志：.agent-logs/project-events.jsonl（已由 report_event_server 过滤
      并维护 phase 链连续性；默认；可由 --log 覆盖）
   2) phases/ 目录结构（用于枚举所有 phase 与 task 节点；不读任何 .md 正文）
 
 约束：
   - 不再需要"选最新 phase-01 序列"的逻辑：phase 链的连续性由 MCP 维护
   - 状态完全由 log 事件推导；不读 task 文件的 YAML
-   - STATE.json 不再含 description / dependencies / plan_path 字段（template 去除）
+  - STATE.json 不再含 description / dependencies / plan_path 字段（template 去除）
   - phases/phase-XX-<name>/ 目录存在 → 该 phase 必出
   - phase 下 tasks/ 下每份 TASK-NNN-*.md → 该 task 必出（无事件 → 全 pending）
-   - task_folder 直接由 phase 目录名构造
-  - 若 STATE.json 已存在，仅当 log 内最大 timestamp > existing.last_updated 才重写
+  - task_folder 直接由 phase 目录名构造
+  - 每次被调用都重新生成 STATE.json（无论时间戳新旧）
 
-用法：
-  python build_state.py                       # 默认：根=脚本目录
-  python build_state.py --root <dir>          # 覆盖项目根
-  python build_state.py --log <jsonl>         # 覆盖 log 路径
+入口：refresh_state.py 统一调用 main_pipeline，不再提供独立 CLI。
 """
 
 from __future__ import annotations
 
-import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -32,17 +29,16 @@ from typing import Any
 from _common import (
     PHASE_DIR_RE,
     TASK_FILE_RE,
+    PROJECT_ROOT,
     extract_phase,
     extract_task_id,
     list_phases,
     list_tasks,
     normalize_path,
 )
-
-DEFAULT_PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_LOG_PATH = DEFAULT_PROJECT_ROOT / ".agent-logs" / "latest-project-events.jsonl"
-DEFAULT_TEMPLATE_PATH = DEFAULT_PROJECT_ROOT / ".templates" / "STATE.json"
-DEFAULT_STATE_PATH = DEFAULT_PROJECT_ROOT / "STATE.json"
+DEFAULT_LOG_PATH = PROJECT_ROOT / ".agent-logs" / "project-events.jsonl"
+DEFAULT_TEMPLATE_PATH = PROJECT_ROOT / ".templates" / "STATE.json"
+DEFAULT_STATE_PATH = PROJECT_ROOT / "STATE.json"
 
 INITIAL_TASK_STATUS = {
     "implementation": "pending",
@@ -77,16 +73,6 @@ def read_events(log_path: Path = DEFAULT_LOG_PATH) -> list[dict[str, Any]]:
                     file=sys.stderr,
                 )
     return events
-
-
-def read_existing_state(state_path: Path = DEFAULT_STATE_PATH) -> dict[str, Any] | None:
-    if not state_path.exists():
-        return None
-    try:
-        with state_path.open("r", encoding="utf-8") as f:
-            return json.load(f)
-    except (OSError, json.JSONDecodeError):
-        return None
 
 
 def write_state(state: dict[str, Any], state_path: Path = DEFAULT_STATE_PATH) -> None:
@@ -138,6 +124,78 @@ def find_phase_plan_event(
     return None
 
 
+# ───────────────── Explorer 事件 ─────────────────
+
+def group_explorer_events_by_phase(
+    events: list[dict[str, Any]],
+) -> dict[int, list[dict[str, Any]]]:
+    """按 phase_num 分组 Explorer 事件。payload.phase 字段判定归属。"""
+    out: dict[int, list[dict[str, Any]]] = {}
+    for ev in events:
+        et = ev.get("event_type", "")
+        if not et.startswith("EXPLORER_"):
+            continue
+        payload = ev.get("payload") or {}
+        phase_str = payload.get("phase", "")
+        n, _ = extract_phase(phase_str)
+        if n is None:
+            # 兼容 "phase-01" 无后缀格式（explorer 事件 payload）
+            m = re.match(r"phase-(\d{2})$", phase_str)
+            if m:
+                n = int(m.group(1))
+            else:
+                continue
+        out.setdefault(n, []).append(ev)
+    return out
+
+
+def derive_exploration_status(
+    events: list[dict[str, Any]],
+    all_tasks_complete: bool,
+) -> dict[str, Any]:
+    """根据 Explorer 事件 + task 完成状态推导 exploration 字段。
+
+    - all_tasks_complete=False → pending（尚未到探索阶段）
+    - all_tasks_complete=True + 无 EXPLORER_COMPLETED/SKIPPED → pending（ready，待探索）
+    - all_tasks_complete=True + 有 EXPLORER_COMPLETED → completed，rounds 不变
+    - all_tasks_complete=True + 有 EXPLORER_SKIPPED → skipped
+    - EXPLORER_FOUND → rounds+1，status 保持 pending（表示有发现待修复，orchestrator 后续重新调度）
+    """
+    if not all_tasks_complete:
+        return {"status": "pending", "rounds": 0, "last_run_at": None, "last_discovery_count": 0}
+
+    rounds = 0
+    last_run_at = None
+    last_discovery_count = 0
+    status = "pending"
+
+    for ev in sorted(events, key=lambda e: e.get("timestamp", "")):
+        et = ev.get("event_type", "")
+        ts = ev.get("timestamp", "")
+        payload = ev.get("payload") or {}
+
+        if et == "EXPLORER_COMPLETED":
+            status = "completed"
+            last_run_at = ts
+            last_discovery_count = payload.get("discovery_count", 0)
+        elif et == "EXPLORER_SKIPPED":
+            status = "skipped"
+            last_run_at = ts
+        elif et == "EXPLORER_FOUND":
+            rounds += 1
+            last_run_at = ts
+            last_discovery_count = payload.get("discovery_count", 0)
+            # status 保持 pending
+        # EXPLORER_INPROGRESS 不推导状态
+
+    return {
+        "status": status,
+        "rounds": rounds,
+        "last_run_at": last_run_at,
+        "last_discovery_count": last_discovery_count,
+    }
+
+
 # ───────────────── 状态推导 ─────────────────
 
 def derive_task_status(events: list[dict[str, Any]]) -> dict[str, Any]:
@@ -159,10 +217,8 @@ def derive_task_status(events: list[dict[str, Any]]) -> dict[str, Any]:
         last_agent = ev.get("agent_name")
         et = ev.get("event_type")
 
-        # TDD 事件
-        if et == "TDD_INPROGRESS":
-            status["implementation"] = "running"
-        elif et == "TDD_COMPLETED":
+        # 仅终态事件推导状态；INPROGRESS 仅记审计，不推导（防卡死 running）
+        if et == "TDD_COMPLETED":
             status["implementation"] = "completed"
             status["review"] = "pending"
             status["test"] = "pending"
@@ -170,8 +226,6 @@ def derive_task_status(events: list[dict[str, Any]]) -> dict[str, Any]:
             status["implementation"] = "failed"
             status["review"] = "pending"
             status["test"] = "pending"
-        elif et == "REVIEW_INPROGRESS":
-            status["review"] = "running"
         elif et == "REVIEW_COMPLETED":
             status["review"] = "completed"
             status["test"] = "pending"
@@ -179,8 +233,6 @@ def derive_task_status(events: list[dict[str, Any]]) -> dict[str, Any]:
             status["review"] = "failed"
             review_rejections += 1
             status["test"] = "pending"
-        elif et == "TEST_INPROGRESS":
-            status["test"] = "running"
         elif et == "TEST_COMPLETED":
             status["test"] = "completed"
         elif et == "TEST_FAILED":
@@ -229,6 +281,7 @@ def build_state(
         return {}
 
     events_by_task = group_events_by_task(events)
+    explorer_events_by_phase = group_explorer_events_by_phase(events)
 
     phases_out: dict[str, Any] = {}
     completed_count = 0
@@ -264,7 +317,14 @@ def build_state(
             if derived["updated_at"] and derived["updated_at"] > (updated_at or ""):
                 updated_at = derived["updated_at"]
 
-        phase_status = derive_phase_status(tasks_out)
+        all_tasks_complete = derive_phase_status(tasks_out) == "completed"
+        explorer_evs = explorer_events_by_phase.get(phase_num, [])
+        exploration = derive_exploration_status(explorer_evs, all_tasks_complete)
+
+        tasks_done = all_tasks_complete
+        exploration_done = exploration["status"] in ("completed", "skipped")
+        phase_status = "completed" if (tasks_done and exploration_done) else "running"
+
         if phase_status == "completed":
             completed_count += 1
         else:
@@ -277,6 +337,7 @@ def build_state(
             "task_folder": task_folder,
             "created_at": created_at,
             "updated_at": updated_at,
+            "exploration": exploration,
             "tasks": tasks_out,
         }
 
@@ -305,14 +366,13 @@ def build_state(
 # ───────────────── 主流程 ─────────────────
 
 def main_pipeline(
-    project_root: Path = DEFAULT_PROJECT_ROOT,
+    project_root: Path = PROJECT_ROOT,
     log_path: Path = DEFAULT_LOG_PATH,
     template_path: Path = DEFAULT_TEMPLATE_PATH,
     state_path: Path = DEFAULT_STATE_PATH,
 ) -> str:
     """返回执行结果标签：
       - "no_events"   日志为空
-      - "stale"       log 时间戳不晚于已有 STATE.json
       - "empty_state" phases 目录为空
       - "ok"          成功写入
     """
@@ -322,16 +382,6 @@ def main_pipeline(
         print("[build_state] 日志为空，跳过生成")
         return "no_events"
 
-    all_ts = [ev.get("timestamp", "") for ev in events if ev.get("timestamp")]
-    max_ts = max(all_ts) if all_ts else ""
-    existing = read_existing_state(state_path)
-    if existing and existing.get("last_updated") and max_ts <= existing["last_updated"]:
-        print(
-            f"[build_state] log 最大时间戳 {max_ts} 不晚于已有 STATE.json 的 "
-            f"last_updated {existing['last_updated']}，跳过生成"
-        )
-        return "stale"
-
     state = build_state(template, events, project_root)
     if not state:
         print("[build_state] phases 目录为空，跳过生成")
@@ -340,35 +390,3 @@ def main_pipeline(
     write_state(state, state_path)
     print(f"[build_state] 已写入 {state_path}")
     return "ok"
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(
-        description="从 latest-project-events.jsonl + phases 目录重建 STATE.json"
-    )
-    parser.add_argument(
-        "--root",
-        type=Path,
-        default=DEFAULT_PROJECT_ROOT,
-        help="项目根目录（影响 phases/ 扫描与 STATE.json 输出）",
-    )
-    parser.add_argument(
-        "--log",
-        type=Path,
-        default=DEFAULT_LOG_PATH,
-        help="事件日志路径（JSONL；默认 latest-project-events.jsonl）",
-    )
-    args = parser.parse_args()
-    template_path = args.root / ".templates" / "STATE.json"
-    state_path = args.root / "STATE.json"
-    result = main_pipeline(
-        project_root=args.root,
-        log_path=args.log,
-        template_path=template_path,
-        state_path=state_path,
-    )
-    return 0 if result in ("ok", "no_events", "stale", "empty_state") else 1
-
-
-if __name__ == "__main__":
-    sys.exit(main())

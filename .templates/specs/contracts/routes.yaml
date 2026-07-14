@@ -1,0 +1,32 @@
+# Routes Contract — <项目名称>
+#
+# Web 项目路由清单。仅 produce-specs --project-type=web 时产出。
+# 由 Explorer 用于界定可探索路由，由 planner 用于路由分工。
+
+routes:
+  - path: /health
+    method: GET
+    auth: false
+    capability: system
+    description: 健康检查端点，用于 Docker healthcheck 与 Explorer 就绪判定
+  - path: /
+    method: GET
+    auth: false
+    capability: <capability>
+    description: 首页，未登录 redirect /login，已登录 redirect 主功能页
+  - path: /login
+    method: GET
+    auth: false
+    capability: <capability>
+    description: 登录页
+  - path: /login
+    method: POST
+    auth: false
+    capability: <capability>
+    description: 提交登录，成功 redirect 主功能页
+  - path: /dashboard
+    method: GET
+    auth: true
+    capability: <capability>
+    auth_fixture: tests/explorer/auth_state.json  # auth=true 路由探索前需加载的 playwright storageState
+    description: <页面描述>

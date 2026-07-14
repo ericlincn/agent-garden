@@ -5,7 +5,7 @@
   "mcp": {
     "report-event": {
       "type": "local",
-      "command": ["python", ".bin/report-event-server.py"],
+      "command": ["python", ".bin/report_event_server.py"],
       "enabled": true
     }
   }

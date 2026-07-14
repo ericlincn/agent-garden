@@ -6,24 +6,15 @@ refresh_state.py — 一次性刷新 STATE.json + task_graph.json
 减少 agent 上下文消耗和"中途停住"的概率。
 
 用法：
-  python scripts/refresh_state.py                # 默认项目根
-  python scripts/refresh_state.py --root <dir>   # 覆盖项目根
+  python .bin/refresh_state.py
+  python .bin/refresh_state.py --root <dir>   # 覆盖项目根
 """
 from __future__ import annotations
 
 import argparse
 import sys
 from pathlib import Path
-
-# Windows 中文终端编码兜底
-for _stream in (sys.stdout, sys.stderr):
-    try:
-        _stream.reconfigure(encoding="utf-8")
-    except (AttributeError, OSError):
-        pass
-
-DEFAULT_PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_OUTPUT_NAME = "task_graph.json"
+from _common import PROJECT_ROOT
 
 
 def main() -> int:
@@ -33,30 +24,23 @@ def main() -> int:
     parser.add_argument(
         "--root",
         type=Path,
-        default=DEFAULT_PROJECT_ROOT,
+        default=PROJECT_ROOT,
         help="项目根目录",
     )
     parser.add_argument(
         "--log",
         type=Path,
         default=None,
-        help="事件日志路径（默认 .agent-logs/latest-project-events.jsonl）",
-    )
-    parser.add_argument(
-        "--task-graph-output",
-        type=Path,
-        default=None,
-        help=f"task_graph.json 输出路径，默认={{root}}/{DEFAULT_OUTPUT_NAME}",
+        help="事件日志路径（默认 .agent-logs/project-events.jsonl）",
     )
     args = parser.parse_args()
 
     project_root: Path = args.root.resolve()
     template_path = project_root / ".templates" / "STATE.json"
     state_path = project_root / "STATE.json"
-    log_path = args.log or (project_root / ".agent-logs" / "latest-project-events.jsonl")
-    graph_output = (args.task_graph_output or project_root / DEFAULT_OUTPUT_NAME).resolve()
+    log_path = args.log or (project_root / ".agent-logs" / "project-events.jsonl")
+    graph_output = project_root / "task_graph.json"
 
-    # ── 1. build_state ──
     from build_state import main_pipeline as build_state_pipeline
 
     state_result = build_state_pipeline(
@@ -67,7 +51,6 @@ def main() -> int:
     )
     print(f"[refresh_state] build_state → {state_result}")
 
-    # ── 2. build_task_graph ──
     from build_task_graph import build_graph, write_graph
 
     graph = build_graph(project_root)
