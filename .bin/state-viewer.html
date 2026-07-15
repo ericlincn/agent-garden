@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent Garden — STATE Viewer</title>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      fontFamily: {
+        mono: ['JetBrains Mono', 'Consolas', 'Monaco', 'monospace'],
+      },
+    },
+  },
+}
+</script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+  *, *::before, *::after { box-sizing: border-box; }
+  body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+  .status-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .status-dot.completed { background: #10b981; box-shadow: 0 0 6px rgba(16,185,129,0.5); }
+  .status-dot.failed    { background: #ef4444; box-shadow: 0 0 6px rgba(239,68,68,0.5); }
+  .status-dot.pending   { background: #475569; }
+
+  .task-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+  }
+  .task-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+    border-color: #6366f1;
+  }
+
+  .dep-tooltip {
+    position: fixed;
+    z-index: 9999;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(4px);
+    transition: opacity 0.1s ease, transform 0.1s ease;
+    max-width: 360px;
+    backdrop-filter: blur(12px);
+  }
+  .dep-tooltip.active {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .progress-bar { height: 4px; border-radius: 2px; overflow: hidden; background: #1e293b; }
+  .progress-fill { height: 100%; border-radius: 2px; transition: width 0.5s ease; }
+  .progress-fill.completed { background: linear-gradient(90deg, #10b981, #34d399); }
+  .progress-fill.running   { background: linear-gradient(90deg, #6366f1, #818cf8); }
+
+  .phase-card { transition: border-color 0.2s ease; }
+  .phase-card:hover { border-color: #475569; }
+
+  @keyframes pulse-subtle {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
+  }
+  .pulse-subtle { animation: pulse-subtle 2s ease-in-out infinite; }
+
+  .tooltip-arrow {
+    position: absolute;
+    bottom: -6px;
+    left: 24px;
+    width: 12px;
+    height: 12px;
+    background: #1e293b;
+    border-right: 1px solid #334155;
+    border-bottom: 1px solid #334155;
+    transform: rotate(45deg);
+  }
+</style>
+</head>
+<body class="bg-slate-950 text-slate-200 min-h-screen">
+
+<!-- File Loader Overlay -->
+<div id="file-loader" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/95 backdrop-blur-sm">
+  <div class="text-center max-w-lg px-6">
+    <div class="text-5xl mb-6">🌱</div>
+    <h1 class="text-2xl font-bold text-white mb-2">Agent Garden STATE Viewer</h1>
+    <p class="text-slate-400 text-sm mb-8">Visualize STATE.json &amp; task_graph.json</p>
+
+    <div id="load-status" class="text-xs font-mono text-slate-500 mb-6">
+      Trying to load from project root...
+    </div>
+
+    <div class="flex flex-col gap-3 items-center">
+      <label class="cursor-pointer bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors inline-flex items-center gap-2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Select STATE.json
+        <input type="file" id="state-input" accept=".json" class="hidden" />
+      </label>
+      <label class="cursor-pointer bg-slate-700 hover:bg-slate-600 text-white text-sm font-medium px-5 py-2.5 rounded-lg transition-colors inline-flex items-center gap-2">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        Select task_graph.json
+        <input type="file" id="graph-input" accept=".json" class="hidden" />
+      </label>
+      <button id="load-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 text-sm px-4 py-2 rounded-lg transition-colors mt-2" disabled>
+        Load Files
+      </button>
+    </div>
+    <p class="text-slate-600 text-xs mt-6">Files are read locally — nothing is uploaded</p>
+  </div>
+</div>
+
+<!-- Main Content (hidden until loaded) -->
+<div id="main-content" class="hidden">
+  <!-- Top Bar -->
+  <header class="sticky top-0 z-40 bg-slate-950/80 backdrop-blur-md border-b border-slate-800">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between flex-wrap gap-3">
+      <div class="flex items-center gap-3">
+        <span class="text-xl">🌱</span>
+        <h1 class="text-lg font-bold text-white tracking-tight">Agent Garden</h1>
+        <span class="text-xs font-mono text-slate-500 bg-slate-800 px-2 py-0.5 rounded">STATE Viewer</span>
+      </div>
+      <div class="flex items-center gap-4 flex-wrap">
+        <div id="summary-stats" class="flex items-center gap-5 text-xs font-mono"></div>
+        <button id="refresh-btn" class="text-xs font-mono text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-md transition-colors">
+          Reload
+        </button>
+        <span id="refresh-indicator" class="text-[10px] font-mono text-slate-500"></span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Phases Container -->
+  <main class="max-w-7xl mx-auto px-6 py-6 space-y-6" id="phases-container"></main>
+</div>
+
+<!-- Dependency Tooltip -->
+<div id="dep-tooltip" class="dep-tooltip bg-slate-800/95 border border-slate-700 rounded-xl p-4 shadow-2xl text-xs">
+  <div class="tooltip-arrow"></div>
+  <div id="tooltip-content"></div>
+</div>
+
+<script>
+// ──────────────────── State ────────────────────
+let stateData = null;
+let graphData = null;
+let stateLoaded = false;
+let graphLoaded = false;
+
+const $fileLoader = document.getElementById('file-loader');
+const $mainContent = document.getElementById('main-content');
+const $loadStatus = document.getElementById('load-status');
+const $loadBtn = document.getElementById('load-btn');
+const $stateInput = document.getElementById('state-input');
+const $graphInput = document.getElementById('graph-input');
+const $phasesContainer = document.getElementById('phases-container');
+const $summaryStats = document.getElementById('summary-stats');
+const $refreshBtn = document.getElementById('refresh-btn');
+const $depTooltip = document.getElementById('dep-tooltip');
+const $tooltipContent = document.getElementById('tooltip-content');
+
+// ──────────────────── File Loading ────────────────────
+
+function tryFetchAll() {
+  $loadStatus.textContent = 'Fetching ../STATE.json ...';
+  return fetch('../STATE.json')
+    .then(r => { if (!r.ok) throw new Error('not found'); return r.json(); })
+    .then(d => {
+      stateData = d;
+      stateLoaded = true;
+      $loadStatus.textContent = 'STATE.json loaded. Fetching ../task_graph.json ...';
+      return fetch('../task_graph.json');
+    })
+    .then(r => { if (!r.ok) throw new Error('not found'); return r.json(); })
+    .then(d => {
+      graphData = d;
+      graphLoaded = true;
+      $loadStatus.textContent = 'All files loaded. Rendering...';
+      renderAll();
+    })
+    .catch(e => {
+      $loadStatus.textContent = `Auto-load failed: ${e.message}. Use file selectors below.`;
+      updateLoadBtn();
+    });
+}
+
+$stateInput.addEventListener('change', () => {
+  const file = $stateInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      stateData = JSON.parse(reader.result);
+      stateLoaded = true;
+      $loadStatus.textContent = 'STATE.json loaded from file.';
+      updateLoadBtn();
+      if (stateLoaded && graphLoaded) renderAll();
+    } catch (e) {
+      $loadStatus.textContent = 'Invalid STATE.json: ' + e.message;
+    }
+  };
+  reader.readAsText(file);
+});
+
+$graphInput.addEventListener('change', () => {
+  const file = $graphInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      graphData = JSON.parse(reader.result);
+      graphLoaded = true;
+      $loadStatus.textContent = 'task_graph.json loaded from file.';
+      updateLoadBtn();
+      if (stateLoaded && graphLoaded) renderAll();
+    } catch (e) {
+      $loadStatus.textContent = 'Invalid task_graph.json: ' + e.message;
+    }
+  };
+  reader.readAsText(file);
+});
+
+$loadBtn.addEventListener('click', () => {
+  if (stateLoaded && graphLoaded) renderAll();
+});
+
+function updateLoadBtn() {
+  $loadBtn.disabled = !(stateLoaded && graphLoaded);
+  $loadBtn.textContent = (stateLoaded && graphLoaded) ? 'Render' : 'Load Files';
+  $loadBtn.className = (stateLoaded && graphLoaded)
+    ? 'bg-indigo-600 hover:bg-indigo-500 text-white text-sm px-5 py-2.5 rounded-lg transition-colors mt-2 cursor-pointer'
+    : 'bg-slate-800 text-slate-500 text-sm px-4 py-2 rounded-lg mt-2 cursor-not-allowed';
+}
+
+$refreshBtn.addEventListener('click', () => refreshData());
+
+async function refreshData() {
+  $refreshBtn.disabled = true;
+  $refreshBtn.textContent = '⟳ Refreshing...';
+  $refreshBtn.className = 'text-xs font-mono text-indigo-400 bg-indigo-500/10 px-3 py-1.5 rounded-md';
+
+  let ok = false;
+  try {
+    const r1 = await fetch('../STATE.json', { cache: 'no-store' });
+    if (!r1.ok) throw new Error(`STATE.json ${r1.status}`);
+    stateData = await r1.json();
+
+    const r2 = await fetch('../task_graph.json', { cache: 'no-store' });
+    if (!r2.ok) throw new Error(`task_graph.json ${r2.status}`);
+    graphData = await r2.json();
+
+    stateLoaded = true;
+    graphLoaded = true;
+    ok = true;
+    renderAll();
+    flashRefreshed();
+  } catch (e) {
+    console.warn('Refresh failed:', e.message);
+    flashRefreshed(false);
+  }
+
+  $refreshBtn.disabled = false;
+  $refreshBtn.textContent = 'Reload';
+  $refreshBtn.className = 'text-xs font-mono text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-md transition-colors';
+}
+
+function flashRefreshed(success = true) {
+  const el = document.getElementById('refresh-indicator');
+  if (!el) return;
+  const now = new Date();
+  const ts = now.toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  if (success) {
+    el.innerHTML = `<span class="text-emerald-400">✓</span> ${ts}`;
+    el.className = 'text-[10px] font-mono text-emerald-400';
+  } else {
+    el.innerHTML = `<span class="text-rose-400">✗ keep existing</span>`;
+    el.className = 'text-[10px] font-mono text-rose-400';
+  }
+  setTimeout(() => {
+    el.className = 'text-[10px] font-mono text-slate-500 transition-colors duration-500';
+  }, 2000);
+}
+
+// ──────────────────── Render Engine ────────────────────
+
+function renderAll() {
+  $fileLoader.classList.add('hidden');
+  $mainContent.classList.remove('hidden');
+  renderSummary();
+  renderPhases();
+  const el = document.getElementById('refresh-indicator');
+  if (el) {
+    const ts = new Date().toLocaleTimeString('zh-CN', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    el.innerHTML = ts;
+    el.className = 'text-[10px] font-mono text-slate-500';
+  }
+}
+
+// ──────────────────── Status Helpers ────────────────────
+
+const STATUS_LABELS = {
+  completed: ['Completed', 'text-emerald-400'],
+  failed:    ['Failed',    'text-rose-400'],
+  pending:   ['Pending',   'text-slate-500'],
+};
+
+const EVENT_LABELS = {
+  TDD_COMPLETED:     ['TDD ✓', '#10b981'],
+  TDD_FAILED:        ['TDD ✗', '#ef4444'],
+  REVIEW_COMPLETED:  ['Review ✓', '#10b981'],
+  REVIEW_FAILED:     ['Review ✗', '#ef4444'],
+  TEST_COMPLETED:    ['Test ✓', '#10b981'],
+  TEST_FAILED:       ['Test ✗', '#ef4444'],
+  TDD_INPROGRESS:    ['TDD …', '#6366f1'],
+  REVIEW_INPROGRESS: ['Review …', '#f59e0b'],
+  TEST_INPROGRESS:   ['Test …', '#06b6d4'],
+};
+
+function statusDot(status) {
+  return `<span class="status-dot ${status}"></span>`;
+}
+
+function statusBadge(status) {
+  const [label, cls] = STATUS_LABELS[status] || [status, 'text-slate-400'];
+  return `<span class="inline-flex items-center gap-1.5 font-mono text-xs ${cls}">${statusDot(status)}${label}</span>`;
+}
+
+function eventTag(eventType) {
+  if (!eventType) return '<span class="text-slate-600 font-mono text-xs">—</span>';
+  const info = EVENT_LABELS[eventType];
+  if (!info) return `<span class="text-slate-400 font-mono text-xs">${eventType}</span>`;
+  return `<span style="color:${info[1]}" class="font-mono text-xs font-medium">${info[0]}</span>`;
+}
+
+function fmtTime(iso) {
+  if (!iso) return '—';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('zh-CN', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  } catch { return iso; }
+}
+
+function taskFullyCompleted(task) {
+  const s = task.status;
+  return s.implementation === 'completed' && s.review === 'completed' && s.test === 'completed';
+}
+
+// ──────────────────── Graph Index ────────────────────
+
+let graphIndex = {};
+function buildGraphIndex() {
+  graphIndex = {};
+  if (!graphData || !graphData.nodes) return;
+  for (const node of graphData.nodes) {
+    graphIndex[node.id] = node;
+  }
+}
+
+function getGraphNode(phaseId, taskId) {
+  const key = `${phaseId}/${taskId}`;
+  return graphIndex[key] || null;
+}
+
+// ──────────────────── Tooltip ────────────────────
+
+let tooltipTimer = null;
+
+function showTooltip(e, taskId, phaseId) {
+  clearTimeout(tooltipTimer);
+  const node = getGraphNode(phaseId, taskId);
+
+  let html = `<div class="font-semibold text-white text-sm mb-3">${phaseId} / ${taskId}</div>`;
+
+  // Dependencies
+  html += '<div class="mb-2"><span class="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Depends on</span></div>';
+  if (node && node.dependencies.length > 0) {
+    html += '<div class="space-y-1 mb-3">';
+    for (const dep of node.dependencies) {
+      const parts = dep.split('/');
+      html += `<div class="flex items-center gap-2 text-slate-300">
+        <span class="w-2 h-2 rounded-full bg-amber-500/60 flex-shrink-0"></span>
+        <span class="font-mono text-[11px] text-amber-300">${dep}</span>
+      </div>`;
+    }
+    html += '</div>';
+  } else {
+    html += '<div class="text-slate-600 text-[11px] mb-3 italic">None — root task</div>';
+  }
+
+  // Dependents
+  html += '<div class="mb-2"><span class="text-slate-500 uppercase tracking-wider text-[10px] font-semibold">Depended by</span></div>';
+  if (node && node.dependents.length > 0) {
+    html += '<div class="space-y-1">';
+    for (const dep of node.dependents) {
+      const parts = dep.split('/');
+      html += `<div class="flex items-center gap-2 text-slate-300">
+        <span class="w-2 h-2 rounded-full bg-indigo-500/60 flex-shrink-0"></span>
+        <span class="font-mono text-[11px] text-indigo-300">${dep}</span>
+      </div>`;
+    }
+    html += '</div>';
+  } else {
+    html += '<div class="text-slate-600 text-[11px] italic">None — leaf task</div>';
+  }
+
+  if (!node) {
+    html = `<div class="font-semibold text-white text-sm mb-2">${phaseId} / ${taskId}</div>
+      <div class="text-slate-500 text-[11px] italic">No graph data available</div>`;
+  }
+
+  $tooltipContent.innerHTML = html;
+  $depTooltip.classList.add('active');
+
+  let left = e.clientX + 16;
+  let top = e.clientY - 10;
+  const tw = $depTooltip.offsetWidth;
+  const th = $depTooltip.offsetHeight;
+  if (left + tw > window.innerWidth - 10) left = e.clientX - tw - 16;
+  if (top + th > window.innerHeight - 10) top = e.clientY - th - 10;
+  if (top < 10) top = 10;
+  if (left < 10) left = 10;
+  $depTooltip.style.left = left + 'px';
+  $depTooltip.style.top = top + 'px';
+}
+
+function hideTooltip() {
+  tooltipTimer = setTimeout(() => {
+    $depTooltip.classList.remove('active');
+  }, 150);
+}
+
+$depTooltip.addEventListener('mouseenter', () => clearTimeout(tooltipTimer));
+$depTooltip.addEventListener('mouseleave', () => $depTooltip.classList.remove('active'));
+
+// ──────────────────── Summary Bar ────────────────────
+
+function renderSummary() {
+  if (!stateData) return;
+  const phases = stateData.phases || {};
+  const phaseList = Object.values(phases);
+  const totalPhases = phaseList.length;
+  const completedPhases = phaseList.filter(p => p.status === 'completed').length;
+  const activePhases = phaseList.filter(p => p.status === 'running').length;
+  let totalTasks = 0, completedTasks = 0;
+  for (const p of phaseList) {
+    const tasks = Object.values(p.tasks || {});
+    totalTasks += tasks.length;
+    completedTasks += tasks.filter(taskFullyCompleted).length;
+  }
+
+  const items = [
+    { label: 'Phases',      value: `${completedPhases}/${totalPhases}`, color: 'text-emerald-400' },
+    { label: 'Active',      value: activePhases,                        color: 'text-indigo-400' },
+    { label: 'Tasks',       value: `${completedTasks}/${totalTasks}`,   color: 'text-amber-400' },
+    { label: 'Current',     value: stateData.current_phase || '—',      color: 'text-sky-400' },
+    { label: 'Updated',     value: fmtTime(stateData.last_updated),     color: 'text-slate-400' },
+  ];
+
+  $summaryStats.innerHTML = items.map(i =>
+    `<div class="flex items-center gap-1.5">
+      <span class="text-slate-500">${i.label}</span>
+      <span class="${i.color} font-medium">${i.value}</span>
+    </div>`
+  ).join('');
+}
+
+// ──────────────────── Phase Rendering ────────────────────
+
+function renderPhases() {
+  if (!stateData || !stateData.phases) return;
+  const phases = stateData.phases;
+  const sortedIds = Object.keys(phases).sort();
+  buildGraphIndex();
+
+  let html = '';
+  for (const phaseId of sortedIds) {
+    html += renderPhase(phaseId, phases[phaseId]);
+  }
+
+  if (!sortedIds.length) {
+    html = `<div class="text-center py-20 text-slate-500">
+      <div class="text-4xl mb-3">📭</div>
+      <p class="text-sm">No phases found in STATE.json</p>
+    </div>`;
+  }
+
+  $phasesContainer.innerHTML = html;
+}
+
+function renderPhase(phaseId, phase) {
+  const tasks = Object.values(phase.tasks || {});
+  const sortedTaskIds = Object.keys(phase.tasks || {}).sort();
+  const total = tasks.length;
+  const done = tasks.filter(taskFullyCompleted).length;
+  const pct = total ? Math.round((done / total) * 100) : 0;
+  const phaseName = phase.name || phaseId;
+  const isCompleted = phase.status === 'completed';
+
+  let tasksHtml = '';
+  for (const taskId of sortedTaskIds) {
+    tasksHtml += renderTask(phaseId, taskId, phase.tasks[taskId]);
+  }
+
+  const statusCls = isCompleted ? 'text-emerald-400 border-emerald-500/30 bg-emerald-500/5' : 'text-indigo-400 border-indigo-500/30 bg-indigo-500/5';
+  const progressCls = isCompleted ? 'completed' : 'running';
+
+  return `
+  <div class="phase-card border border-slate-800 rounded-2xl bg-slate-900/50 overflow-hidden">
+    <!-- Phase Header -->
+    <div class="px-6 py-5 border-b border-slate-800/60">
+      <div class="flex items-start justify-between flex-wrap gap-3">
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-3 mb-2">
+            <span class="font-mono text-sm font-semibold text-white">${phaseId}</span>
+            <span class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-mono font-medium border ${statusCls}">
+              ${isCompleted ? '✓' : '◉'} ${isCompleted ? 'Completed' : 'Running'}
+            </span>
+          </div>
+          <h2 class="text-base font-semibold text-slate-300 mb-1">${escapeHtml(phaseName)}</h2>
+          <div class="flex items-center gap-4 text-[11px] font-mono text-slate-500 flex-wrap">
+            <span>${phase.task_folder || ''}</span>
+            ${phase.created_at ? `<span>Created: ${fmtTime(phase.created_at)}</span>` : ''}
+            ${phase.updated_at ? `<span>Updated: ${fmtTime(phase.updated_at)}</span>` : ''}
+          </div>
+        </div>
+        <div class="text-right flex-shrink-0">
+          <div class="text-2xl font-bold font-mono ${isCompleted ? 'text-emerald-400' : 'text-indigo-400'}">${pct}%</div>
+          <div class="text-[11px] text-slate-500 font-mono">${done}/${total} tasks</div>
+        </div>
+      </div>
+      <div class="progress-bar mt-3">
+        <div class="progress-fill ${progressCls}" style="width:${pct}%"></div>
+      </div>
+    </div>
+
+    <!-- Tasks Grid -->
+    <div class="p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+      ${tasksHtml || '<div class="col-span-full text-center py-8 text-slate-600 text-xs font-mono">No tasks</div>'}
+    </div>
+  </div>`;
+}
+
+function renderTask(phaseId, taskId, task) {
+  const s = task.status;
+  const fullyDone = taskFullyCompleted(task);
+  const hasWarnings = task.review_rejections > 0 || task.test_failures > 0;
+
+  const borderCls = fullyDone ? 'border-emerald-500/20' : hasWarnings ? 'border-rose-500/20' : 'border-slate-700/50';
+  const bgCls = fullyDone ? 'bg-emerald-500/3' : 'bg-slate-800/30';
+
+  const warningsHtml = hasWarnings ? `
+  <div class="flex items-center gap-3 mt-2 pt-2 border-t border-slate-800/50">
+    ${task.review_rejections > 0 ? `<span class="text-[10px] font-mono text-rose-400">↺${task.review_rejections} reviews</span>` : ''}
+    ${task.test_failures > 0 ? `<span class="text-[10px] font-mono text-rose-400">✗${task.test_failures} tests</span>` : ''}
+  </div>` : '';
+
+  const taskPathShort = task.task_path ? task.task_path.split('/').pop() : taskId;
+
+  return `
+  <div class="task-card ${borderCls} ${bgCls} border rounded-xl p-4 cursor-pointer relative"
+       data-phase="${phaseId}"
+       data-task="${taskId}"
+       onmouseenter="showTooltip(event, '${taskId}', '${phaseId}')"
+       onmousemove="showTooltip(event, '${taskId}', '${phaseId}')"
+       onmouseleave="hideTooltip()">
+    <!-- Task Header -->
+    <div class="flex items-center justify-between mb-3">
+      <span class="font-mono text-xs font-semibold text-white">${taskId}</span>
+      ${eventTag(task.last_event_type)}
+    </div>
+
+    <!-- File name -->
+    <div class="text-[10px] font-mono text-slate-500 truncate mb-3" title="${escapeHtml(task.task_path || '')}">
+      ${escapeHtml(taskPathShort)}
+    </div>
+
+    <!-- Status Row -->
+    <div class="grid grid-cols-3 gap-1.5">
+      <div class="text-center">
+        <div class="text-[10px] text-slate-500 mb-1">Impl</div>
+        ${statusBadge(s.implementation)}
+      </div>
+      <div class="text-center">
+        <div class="text-[10px] text-slate-500 mb-1">Review</div>
+        ${statusBadge(s.review)}
+      </div>
+      <div class="text-center">
+        <div class="text-[10px] text-slate-500 mb-1">Test</div>
+        ${statusBadge(s.test)}
+      </div>
+    </div>
+
+    ${warningsHtml}
+
+    <!-- Timestamps -->
+    <div class="mt-3 pt-2 border-t border-slate-800/50 flex justify-between text-[9px] font-mono text-slate-600">
+      ${task.created_at ? `<span title="${task.created_at}">${fmtTime(task.created_at)}</span>` : '<span></span>'}
+      ${task.last_agent ? `<span class="text-slate-500">${escapeHtml(task.last_agent)}</span>` : '<span></span>'}
+    </div>
+  </div>`;
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ──────────────────── Init ────────────────────
+
+tryFetchAll();
+</script>
+</body>
+</html>
